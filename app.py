@@ -2,30 +2,36 @@ import streamlit as st
 import os
 import re
 from datetime import datetime
-from dotenv import load_dotenv
 
-# RAG Imports
+# RAG & AI Imports
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
+# --- 1. ACCESS CONTROL (Gatekeeper) ---
+# This must run before anything else to protect your API costs
 def check_password():
     """Returns True if the user had the correct password."""
     def password_entered():
-        if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
+        if st.session_state["password_input"] == st.secrets["APP_PASSWORD"]:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]
+            del st.session_state["password_input"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.markdown('<div class="ready-room"><h1>MedSim Academy</h1><p>Restricted Access</p></div>', unsafe_allow_html=True)
-        st.text_input("Enter Academy Access Code", type="password", on_change=password_entered, key="password")
+        st.markdown("""
+            <style>
+            .login-box { background-color: #1a1a1a; padding: 40px; border-radius: 15px; border: 1px solid #333; text-align: center; margin-top: 50px; }
+            </style>
+            <div class="login-box"><h1>🚑 MedSim Academy</h1><p>Restricted Access - Enter Credentials</p></div>
+            """, unsafe_allow_html=True)
+        st.text_input("Access Code", type="password", on_change=password_entered, key="password_input")
         return False
     elif not st.session_state["password_correct"]:
-        st.text_input("Enter Academy Access Code", type="password", on_change=password_entered, key="password")
-        st.error("😕 Access Code denied.")
+        st.text_input("Access Code", type="password", on_change=password_entered, key="password_input")
+        st.error("😕 Access Denied.")
         return False
     else:
         return True
@@ -33,7 +39,10 @@ def check_password():
 if not check_password():
     st.stop()
 
-# --- 1. SETTINGS & CSS ---
+# --- 2. ENGINES & STYLING ---
+# Pulling the API Key directly from Streamlit's "Secrets" dashboard
+os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
+
 st.set_page_config(page_title="MedSim Academy", page_icon="🩺", layout="wide")
 
 st.markdown("""
@@ -46,9 +55,6 @@ st.markdown("""
     .ready-room { background-color: #1a1a1a; padding: 40px; border-radius: 15px; border: 1px solid #333; text-align: center; margin-top: 50px; }
     </style>
     """, unsafe_allow_html=True)
-
-# --- 2. ENGINES ---
-load_dotenv()
 
 @st.cache_resource
 def get_llm():
@@ -75,7 +81,6 @@ def process_medsim_turn(raw_text):
     minutes, seconds = divmod(diff.seconds, 60)
     timestamp = f"T+{minutes:02d}:{seconds:02d}"
 
-    # Vitals Normalizer
     v_matches = re.findall(r"\[VITAL\]\s*([^:\[\n\r]+?)\s*[:\-]\s*([^\[\n\r]+?)(?=\s*\[|$)", raw_text, re.IGNORECASE)
     vital_map = {
         "HEART RATE": "HR", "PULSE": "HR", "HR": "HR",
@@ -91,7 +96,6 @@ def process_medsim_turn(raw_text):
         final_key = vital_map.get(clean_key, label.strip().upper())
         st.session_state.vitals[final_key] = val.strip().rstrip(',')
 
-    # Log Entries
     l_matches = re.findall(r"\[LOG\]\s*(?:[\d:]+)?\s*([^\[\n\r]+)", raw_text)
     for entry in l_matches:
         clean_entry = f"{timestamp} | {entry.strip()}"
@@ -159,7 +163,7 @@ else:
 
     with col_chat:
         if not st.session_state.messages:
-            full_p = f"!!! {st.session_state.mode} MODE !!!\nCHALLENGE: {st.session_state.target_cat} | {st.session_state.target_diff}\n{st.secrets['SYSTEM_PROMPT_CONTENT']}"
+            full_p = f"!!! {st.session_state.mode} MODE !!!\\nCHALLENGE: {st.session_state.target_cat} | {st.session_state.target_diff}\\n{st.secrets['SYSTEM_PROMPT_CONTENT']}"
             st.session_state.messages = [SystemMessage(content=full_p), HumanMessage(content=f"Dispatch a {st.session_state.target_diff} {st.session_state.target_cat} call.")]
             resp = get_llm().invoke(st.session_state.messages)
             st.session_state.messages.append(AIMessage(content=process_medsim_turn(resp.content)))
@@ -181,7 +185,7 @@ else:
                 with st.spinner("🔍 Consulting Protocols..."):
                     context = get_protocol_context(u_input)
                 
-                enriched_input = f"--- LOCAL PROTOCOL REFERENCE ---\n{context}\n\n--- STUDENT ACTION ---\n{u_input}"
+                enriched_input = f"--- LOCAL PROTOCOL REFERENCE ---\\n{context}\\n\\n--- STUDENT ACTION ---\\n{u_input}"
                 st.session_state.messages.append(HumanMessage(content=enriched_input))
                 
                 with st.chat_message("assistant"):

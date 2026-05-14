@@ -78,6 +78,13 @@ def get_protocol_context(user_query):
         docs = db.similarity_search(user_query, k=3)
         return "\n---\n".join([d.page_content for d in docs])
     return "No protocol context available."
+    
+    # --- ADD THIS TO THE CODE ---
+    print(f"\n--- DEBUG: RAG IS SEARCHING FOR: {query} ---")
+    print(f"--- DEBUG: DATA FOUND IN PROTOCOLS ---\n{context}\n")
+    # ----------------------------
+    
+    return context
 
 # --- 4. DATA PROCESSING ---
 def render(l, k):
@@ -257,16 +264,26 @@ else:
                         with st.spinner("🔍 Consulting Protocols..."):
                             context = get_protocol_context(u_input)
                         
-                        # Prepare the enriched prompt for the AI
-                        enriched_input = f"--- LOCAL PROTOCOL REFERENCE ---\n{context}\n\n--- STUDENT ACTION ---\n{u_input}"
-                        
+                        # --- STEP 3: DIAGNOSTIC LOGS (Check your terminal/console for this) ---
+                        print(f"\n[DEBUG] PROVIDER LEVEL: {st.session_state.mode}")
+                        print(f"[DEBUG] RAG CONTEXT SENT TO AI:\n{context}\n")
+
+                         # --- STEP 4: THE SCOPE FIREWALL ---
+                        # We inject the provider level as a "Mandatory Constraint" header
+                        scope_firewall = f"--- CRITICAL: STUDENT IS A {st.session_state.mode} PROVIDER. DO NOT EXCEED THIS SCOPE ---\n"
+    
+                        # We combine the firewall, the protocols, and the student's action
+                        enriched_input = f"{scope_firewall}--- LOCAL PROTOCOL REFERENCE ---\n{context}\n\n--- STUDENT ACTION ---\n{u_input}"
+    
                         # Replace the last user message with the enriched version for the LLM
                         st.session_state.messages[-1] = HumanMessage(content=enriched_input)
-                        
+    
+                        # Call the AI (The Scope Firewall is now the very first thing it reads)
                         resp = get_llm().invoke(st.session_state.messages)
+    
                         process_medsim_turn(resp.content) # Updates timeline/vitals
                         st.session_state.messages.append(AIMessage(content=resp.content))
-                        
+    
                         if "[DEBRIEF]" in resp.content: 
                             st.session_state.sim_finished = True
                 st.rerun()

@@ -5,3 +5,4 @@ langchain-community
 faiss-cpu
 pypdf
 sentence-transformers
+torchvision

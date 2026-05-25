@@ -15,6 +15,35 @@ _HEADER_RE = re.compile(
     re.IGNORECASE,
 )
 
+# The PWC PCM uses a two-column layout (BLS left, ALS right, ACP far-right).
+# pypdf's extract_text() concatenates these column headers without spaces,
+# producing tokens like "BLSALS" or "ALSACP" that the LLM cannot parse for
+# scope. Replace them with a clear section divider before chunking.
+def _fix_scope_headers(text: str) -> str:
+    """Turn BLSALS / ALSACP / BLSALSACP into readable section markers.
+
+    In PWC PCM pages, 'BLS' and 'ALS' are column headers printed side-by-side.
+    extract_text() concatenates them without spaces. The divider marks where
+    BLS-accessible content begins (both BLS and ALS may perform what follows).
+    """
+    text = re.sub(r'\bBLSALSACP\b', '\n[BLS + ALS + ACP PROVIDERS:]\n', text)
+    text = re.sub(r'\bBLSALS\b',    '\n[BLS + ALS PROVIDERS:]\n', text)
+    text = re.sub(r'\bALSACP\b',    '\n[ALS + ACP PROVIDERS:]\n', text)
+    return text
+
+
+# Roman numerals and bare integers are page/section numbers, not useful titles.
+_BARE_NUMBER_RE = re.compile(r'^[IVXLCDM\d]+$', re.IGNORECASE)
+
+
+def _extract_title(text: str, page_num: int) -> str:
+    """Return the first meaningful line of page text, skipping bare numbers."""
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not _BARE_NUMBER_RE.fullmatch(stripped):
+            return stripped[:120]
+    return f"Page {page_num}"
+
 def ingest_protocols():
     print("Initializing embedding engine...")
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
@@ -60,12 +89,12 @@ def ingest_protocols():
 
         # Strip the repeated page header (appears up to twice per page in the extracted text)
         text = _HEADER_RE.sub("", raw).strip()
+        # Repair column-header concatenation (BLSALS → BLS SCOPE / ALS SCOPE markers)
+        text = _fix_scope_headers(text)
         if not text:
             continue
 
-        # Use the first non-empty line as the document title prefix for context
-        first_line = next((l.strip() for l in text.splitlines() if l.strip()), f"Page {human_page}")
-        title = first_line[:120]
+        title = _extract_title(text, human_page)
 
         chunks = splitter.split_text(text)
         for chunk_idx, chunk in enumerate(chunks):

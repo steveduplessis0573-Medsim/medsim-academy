@@ -14,7 +14,7 @@ st.set_page_config(page_title="MedSim Academy", page_icon="🩺", layout="wide")
 @st.cache_resource
 def load_resources():
     # Cache the 'Brain' so it stays in RAM and never reloads during the session
-    embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"local_files_only": True})
     db = FAISS.load_local("protocol_db", embedder, allow_dangerous_deserialization=True)
     # Using 2.0-Flash as the stable fallback to bypass the 404 errors on '3' and '1.5'
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7, timeout=60)
@@ -103,8 +103,17 @@ def process_medsim_turn(text):
     return re.sub(r"\[VITAL\].*?(\n|$)|\[LOG\].*?(\n|$)", "", text, flags=re.IGNORECASE).strip()
 
 def clean_for_display(text):
-    """Strip [VITAL] and [LOG] tags for rendering — no session state side effects."""
-    return re.sub(r"\[VITAL\].*?(\n|$)|\[LOG\].*?(\n|$)", "", text, flags=re.IGNORECASE).strip()
+    """Render [VITAL] tags as inline readouts and strip [LOG] tags for chat display."""
+    # Strip log entries (they go to the timeline, not the chat)
+    text = re.sub(r"\[LOG\][^\n\r]*", "", text, flags=re.IGNORECASE)
+    # Convert each [VITAL] tag to a readable inline badge so vitals stay visible in chat history
+    def _fmt_vital(m):
+        return f"`{m.group(1).upper()}: {m.group(2).strip()}`"
+    text = re.sub(
+        r"\[VITAL\]\s*(HR|BP|SPO2|RR|BGL|TEMP)[:\-]\s*([^\[\n\r]+)",
+        _fmt_vital, text, flags=re.IGNORECASE,
+    )
+    return text.strip()
 
 def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazard, used_refusal):
     """Bypasses external logging to keep local simulation flow clean."""
@@ -329,6 +338,15 @@ if not st.session_state.started:
         
         # 3. DISPATCH
         sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {cat}\n{st.secrets['SYSTEM_PROMPT_CONTENT'].replace('{mode}', mode)}"
+        if custom_scenario.strip():
+            sys_p += (
+                "\n\n[CUSTOM SCENARIO OVERRIDE — PARAMETER LOCK ACTIVE]\n"
+                "The instructor has specified exact dispatch parameters. "
+                "SUSPEND all Procedural Variation rules. "
+                "You MUST preserve the patient's exact age, sex, and chief complaint as dispatched — do NOT change any of these. "
+                "Only the street address, apartment details, and incidental scene environment details may vary to make the dispatch realistic. "
+                "Example: if dispatched as '75 YOM chest pain', the patient must be a 75-year-old male with chest pain."
+            )
         st.session_state.messages = [
             SystemMessage(content=sys_p), 
             HumanMessage(content=f"Dispatch {dispatch_instruction}.")

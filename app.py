@@ -104,14 +104,20 @@ def process_medsim_turn(text):
 
 def clean_for_display(text):
     """
-    Strip [LOG] tags. For [VITAL] tags: render inline if any carry a real value,
-    strip silently if all are placeholders ('--'). This keeps dispatch and
-    pre-assessment vitals invisible until the student explicitly requests them.
+    Strip the [LOG]+[VITAL] documentation footer block as a unit.
+    Render any remaining (narrative) [VITAL] tags inline when they carry real
+    values; strip silently when all are placeholders ('--').
     """
-    # Strip log entries — they live in the timeline, not the chat
-    text = re.sub(r"\[LOG\][^\n\r]*", "", text, flags=re.IGNORECASE)
+    # Strip [LOG] lines AND any [VITAL] lines that immediately follow them.
+    # The system prompt mandates a [LOG] then [VITAL] footer on every response;
+    # removing them together prevents footer vitals from appearing twice when
+    # the LLM also reported vitals inline in the narrative body.
+    text = re.sub(
+        r"\[LOG\][^\n\r]*(\n[ \t]*\[VITAL\][^\n\r]*)*",
+        "", text, flags=re.IGNORECASE,
+    )
 
-    # Determine whether any vital in this message has a real (non-placeholder) reading
+    # Check remaining (narrative) vitals for real values
     raw_values = re.findall(
         r"\[VITAL\]\s*(?:HR|BP|SPO2|RR|BGL|TEMP)[:\-]\s*([^\[\n\r]+)",
         text, re.IGNORECASE,
@@ -120,13 +126,13 @@ def clean_for_display(text):
 
     if has_real_vitals:
         def _fmt(m):
-            return f"`{m.group(1).upper()}: {m.group(2).strip()}`"
+            # Trailing space keeps adjacent code spans from merging in Markdown
+            return f"`{m.group(1).upper()}: {m.group(2).strip()}` "
         text = re.sub(
             r"\[VITAL\]\s*(HR|BP|SPO2|RR|BGL|TEMP)[:\-]\s*([^\[\n\r]+)",
             _fmt, text, flags=re.IGNORECASE,
         )
     else:
-        # All placeholders — drop the tags entirely so they don't clutter the chat
         text = re.sub(r"\[VITAL\][^\n\r]*", "", text, flags=re.IGNORECASE)
 
     return text.strip()

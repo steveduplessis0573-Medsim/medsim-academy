@@ -103,16 +103,32 @@ def process_medsim_turn(text):
     return re.sub(r"\[VITAL\].*?(\n|$)|\[LOG\].*?(\n|$)", "", text, flags=re.IGNORECASE).strip()
 
 def clean_for_display(text):
-    """Render [VITAL] tags as inline readouts and strip [LOG] tags for chat display."""
-    # Strip log entries (they go to the timeline, not the chat)
+    """
+    Strip [LOG] tags. For [VITAL] tags: render inline if any carry a real value,
+    strip silently if all are placeholders ('--'). This keeps dispatch and
+    pre-assessment vitals invisible until the student explicitly requests them.
+    """
+    # Strip log entries — they live in the timeline, not the chat
     text = re.sub(r"\[LOG\][^\n\r]*", "", text, flags=re.IGNORECASE)
-    # Convert each [VITAL] tag to a readable inline badge so vitals stay visible in chat history
-    def _fmt_vital(m):
-        return f"`{m.group(1).upper()}: {m.group(2).strip()}`"
-    text = re.sub(
-        r"\[VITAL\]\s*(HR|BP|SPO2|RR|BGL|TEMP)[:\-]\s*([^\[\n\r]+)",
-        _fmt_vital, text, flags=re.IGNORECASE,
+
+    # Determine whether any vital in this message has a real (non-placeholder) reading
+    raw_values = re.findall(
+        r"\[VITAL\]\s*(?:HR|BP|SPO2|RR|BGL|TEMP)[:\-]\s*([^\[\n\r]+)",
+        text, re.IGNORECASE,
     )
+    has_real_vitals = any(v.strip().strip("-").strip() for v in raw_values)
+
+    if has_real_vitals:
+        def _fmt(m):
+            return f"`{m.group(1).upper()}: {m.group(2).strip()}`"
+        text = re.sub(
+            r"\[VITAL\]\s*(HR|BP|SPO2|RR|BGL|TEMP)[:\-]\s*([^\[\n\r]+)",
+            _fmt, text, flags=re.IGNORECASE,
+        )
+    else:
+        # All placeholders — drop the tags entirely so they don't clutter the chat
+        text = re.sub(r"\[VITAL\][^\n\r]*", "", text, flags=re.IGNORECASE)
+
     return text.strip()
 
 def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazard, used_refusal):

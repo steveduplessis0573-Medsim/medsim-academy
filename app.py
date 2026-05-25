@@ -14,7 +14,7 @@ st.set_page_config(page_title="MedSim Academy", page_icon="🩺", layout="wide")
 @st.cache_resource
 def load_resources():
     # Cache the 'Brain' so it stays in RAM and never reloads during the session
-    embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"local_files_only": True})
+    embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     db = FAISS.load_local("protocol_db", embedder, allow_dangerous_deserialization=True)
     # Using 2.0-Flash as the stable fallback to bypass the 404 errors on '3' and '1.5'
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7, timeout=60)

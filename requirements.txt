@@ -4,5 +4,6 @@ langchain-huggingface
 langchain-community
 faiss-cpu
 pypdf
+pymupdf
 sentence-transformers
 torchvision

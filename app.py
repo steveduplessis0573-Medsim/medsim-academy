@@ -159,9 +159,15 @@ def _get_db_connection():
                 timestamp   TEXT NOT NULL,
                 mode        TEXT, acuity TEXT, category TEXT, complaint TEXT,
                 had_hazard  INTEGER, used_refusal INTEGER,
-                score       INTEGER, pass_fail TEXT, transcript TEXT
+                score       INTEGER, pass_fail TEXT, transcript TEXT,
+                student     TEXT DEFAULT 'Anonymous'
             )
         """)
+        # Add column if table already existed without it
+        try:
+            cur.execute("ALTER TABLE call_metrics ADD COLUMN student TEXT DEFAULT 'Anonymous'")
+        except Exception:
+            pass   # column already exists
         conn.commit()
         cur.close()
         return conn, True
@@ -174,22 +180,27 @@ def _get_db_connection():
                 timestamp TEXT    NOT NULL,
                 mode      TEXT, acuity TEXT, category TEXT, complaint TEXT,
                 had_hazard INTEGER, used_refusal INTEGER,
-                score     INTEGER, pass_fail TEXT, transcript TEXT
+                score     INTEGER, pass_fail TEXT, transcript TEXT,
+                student   TEXT DEFAULT 'Anonymous'
             )
         """)
+        try:
+            conn.execute("ALTER TABLE call_metrics ADD COLUMN student TEXT DEFAULT 'Anonymous'")
+        except Exception:
+            pass   # column already exists
         conn.commit()
         return conn, False
 
 
-def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazard, used_refusal):
+def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazard, used_refusal, student="Anonymous"):
     """Write one completed simulation record to the analytics database."""
     try:
         # --- Extract score and pass/fail from the debrief text ---
-        score_m = re.search(r'\[SCORE\]\s*(\d+)/100|SCORE[:\s]+(\d+)/100', response_text, re.IGNORECASE)
-        score   = int(score_m.group(1) or score_m.group(2)) if score_m else None
+        score_m = re.search(r'(?:\[SCORE\]|SCORE\b)[^0-9\n]{0,30}(\d{1,3})\s*/\s*100', response_text, re.IGNORECASE)
+        score   = int(score_m.group(1)) if score_m else None
 
-        pf_m    = re.search(r'\[RESULT\]\s*(PASS|FAIL)|RESULT[:\s]+(PASS|FAIL)', response_text, re.IGNORECASE)
-        pass_fail = (pf_m.group(1) or pf_m.group(2)).upper() if pf_m else None
+        pf_m    = re.search(r'(?:\[RESULT\]|RESULT\b)[^A-Za-z\n]{0,20}(PASS|FAIL)', response_text, re.IGNORECASE)
+        pass_fail = pf_m.group(1).upper() if pf_m else None
 
         # --- Build readable transcript from message history ---
         lines = []
@@ -208,10 +219,10 @@ def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazar
         cur.execute(
             f"""INSERT INTO call_metrics
                 (timestamp, mode, acuity, category, complaint,
-                 had_hazard, used_refusal, score, pass_fail, transcript)
-               VALUES ({",".join([ph]*10)})""",
+                 had_hazard, used_refusal, score, pass_fail, transcript, student)
+               VALUES ({",".join([ph]*11)})""",
             (timestamp, mode, acuity, category, complaint,
-             int(had_hazard), int(used_refusal), score, pass_fail, transcript),
+             int(had_hazard), int(used_refusal), score, pass_fail, transcript, student),
         )
         conn.commit()
         cur.close()
@@ -237,6 +248,10 @@ with st.sidebar:
     acuity = st.select_slider("Acuity", options=["Easy", "Moderate", "Hard", "Critical"], disabled=st.session_state.started)
     mode = st.radio("Protocol Level", ["BLS", "ALS"], disabled=st.session_state.started)
     
+    st.divider()
+    st.subheader("👤 Student")
+    student_name = st.text_input("Your Name:", placeholder="Leave blank to stay anonymous", disabled=st.session_state.started)
+
     st.divider()
     # THE CUSTOM DISPATCH OVERRIDE
     st.subheader("🎯 Custom Dispatch")
@@ -431,6 +446,7 @@ if not st.session_state.started:
             st.session_state.scene_cleared = True
 
         st.session_state.started = True
+        st.session_state.student_name = student_name.strip() or "Anonymous"
         st.session_state.mode = mode
         st.session_state.start_time = datetime.now()
         st.session_state.sim_finished = False
@@ -616,5 +632,6 @@ else:
                             response_text=resp.content,
                             had_hazard=had_hz,
                             used_refusal=used_ref,
+                            student=st.session_state.get('student_name', 'Anonymous'),
                         )
                     st.rerun()

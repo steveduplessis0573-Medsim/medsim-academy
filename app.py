@@ -186,7 +186,8 @@ def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazar
 
         conn, is_postgres = _get_db_connection()
         ph = "%s" if is_postgres else "?"   # placeholder differs between drivers
-        conn.execute(
+        cur = conn.cursor()
+        cur.execute(
             f"""INSERT INTO call_metrics
                 (timestamp, mode, acuity, category, complaint,
                  had_hazard, used_refusal, score, pass_fail, transcript)
@@ -195,6 +196,7 @@ def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazar
              int(had_hazard), int(used_refusal), score, pass_fail, transcript),
         )
         conn.commit()
+        cur.close()
         conn.close()
 
     except Exception as e:

@@ -5,5 +5,6 @@ langchain-community
 faiss-cpu
 pypdf
 pymupdf
+psycopg2-binary
 sentence-transformers
 torchvision

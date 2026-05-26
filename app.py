@@ -137,13 +137,69 @@ def clean_for_display(text):
 
     return text.strip()
 
+def _get_db_connection():
+    """
+    Return (conn, is_postgres).
+    Uses PostgreSQL when DATABASE_URL secret is present (Streamlit Cloud),
+    falls back to local SQLite otherwise.
+    """
+    db_url = st.secrets.get("DATABASE_URL", "")
+    if db_url:
+        import psycopg2
+        return psycopg2.connect(db_url), True
+    else:
+        import sqlite3
+        conn = sqlite3.connect("simulation_data.db")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS call_metrics (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT    NOT NULL,
+                mode      TEXT, acuity TEXT, category TEXT, complaint TEXT,
+                had_hazard INTEGER, used_refusal INTEGER,
+                score     INTEGER, pass_fail TEXT, transcript TEXT
+            )
+        """)
+        conn.commit()
+        return conn, False
+
+
 def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazard, used_refusal):
-    """Bypasses external logging to keep local simulation flow clean."""
+    """Write one completed simulation record to the analytics database."""
     try:
-        # Google Sheets logic removed to focus on core stability
-        pass
+        # --- Extract score and pass/fail from the debrief text ---
+        score_m = re.search(r'\[SCORE\]\s*(\d+)/100|SCORE[:\s]+(\d+)/100', response_text, re.IGNORECASE)
+        score   = int(score_m.group(1) or score_m.group(2)) if score_m else None
+
+        pf_m    = re.search(r'\[RESULT\]\s*(PASS|FAIL)|RESULT[:\s]+(PASS|FAIL)', response_text, re.IGNORECASE)
+        pass_fail = (pf_m.group(1) or pf_m.group(2)).upper() if pf_m else None
+
+        # --- Build readable transcript from message history ---
+        lines = []
+        for msg in st.session_state.get("messages", []):
+            if isinstance(msg, HumanMessage):
+                lines.append(f"STUDENT: {msg.content}")
+            elif isinstance(msg, AIMessage):
+                lines.append(f"MEDSIM:  {msg.content}")
+        transcript = "\n\n".join(lines)
+
+        timestamp = datetime.now().isoformat(timespec="seconds")
+
+        conn, is_postgres = _get_db_connection()
+        ph = "%s" if is_postgres else "?"   # placeholder differs between drivers
+        conn.execute(
+            f"""INSERT INTO call_metrics
+                (timestamp, mode, acuity, category, complaint,
+                 had_hazard, used_refusal, score, pass_fail, transcript)
+               VALUES ({",".join([ph]*10)})""",
+            (timestamp, mode, acuity, category, complaint,
+             int(had_hazard), int(used_refusal), score, pass_fail, transcript),
+        )
+        conn.commit()
+        conn.close()
+
     except Exception as e:
-        st.error(f"Local logging stub error: {e}")
+        # Never let a logging failure crash the simulation
+        st.warning(f"⚠️ Analytics logging failed silently: {e}")
 
 # --- 5. INITIAL SESSION STATE ---
 if "messages" not in st.session_state: st.session_state.messages = []

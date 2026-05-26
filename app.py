@@ -142,11 +142,29 @@ def _get_db_connection():
     Return (conn, is_postgres).
     Uses PostgreSQL when DATABASE_URL secret is present (Streamlit Cloud),
     falls back to local SQLite otherwise.
+    Always ensures the call_metrics table exists.
     """
-    db_url = st.secrets.get("DATABASE_URL", "")
+    try:
+        db_url = st.secrets["DATABASE_URL"]
+    except (KeyError, Exception):
+        db_url = ""
+
     if db_url:
         import psycopg2
-        return psycopg2.connect(db_url), True
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS call_metrics (
+                id          SERIAL PRIMARY KEY,
+                timestamp   TEXT NOT NULL,
+                mode        TEXT, acuity TEXT, category TEXT, complaint TEXT,
+                had_hazard  INTEGER, used_refusal INTEGER,
+                score       INTEGER, pass_fail TEXT, transcript TEXT
+            )
+        """)
+        conn.commit()
+        cur.close()
+        return conn, True
     else:
         import sqlite3
         conn = sqlite3.connect("simulation_data.db")
@@ -185,7 +203,7 @@ def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazar
         timestamp = datetime.now().isoformat(timespec="seconds")
 
         conn, is_postgres = _get_db_connection()
-        ph = "%s" if is_postgres else "?"   # placeholder differs between drivers
+        ph = "%s" if is_postgres else "?"
         cur = conn.cursor()
         cur.execute(
             f"""INSERT INTO call_metrics
@@ -198,10 +216,12 @@ def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazar
         conn.commit()
         cur.close()
         conn.close()
+        # Store success so it survives the st.rerun()
+        st.session_state["_db_log_error"] = None
 
     except Exception as e:
-        # Never let a logging failure crash the simulation
-        st.warning(f"⚠️ Analytics logging failed silently: {e}")
+        # Store error in session state — st.warning() before st.rerun() is invisible
+        st.session_state["_db_log_error"] = str(e)
 
 # --- 5. INITIAL SESSION STATE ---
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -478,6 +498,10 @@ else:
                 role = "assistant" if isinstance(msg, AIMessage) else "user"
                 with st.chat_message(role, avatar="🚑" if role=="assistant" else "🩺"):
                     st.markdown(clean_text)
+
+        # Show any database logging error that survived the rerun
+        if st.session_state.get("_db_log_error"):
+            st.error(f"⚠️ Analytics logging error: {st.session_state['_db_log_error']}")
 
         # Student Input
         if not st.session_state.sim_finished:

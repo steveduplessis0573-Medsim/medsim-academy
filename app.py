@@ -274,14 +274,14 @@ with st.sidebar:
 if not st.session_state.started:
     st.markdown('<h1 style="text-align:center;">MedSim Academy</h1>', unsafe_allow_html=True)
 
-    st.info("⚠️ MedSim Academy is an AI-powered training simulator. Clinical scenarios are fictional and you are evaluated against the protocols that are installed. These may not reflect your agency's most current standards and the AI can make mistakes. For real patient care, always defer to your medical director and local protocols.")
+    st.info("⚠️ MedSim Academy uses AI to help you practice clinical decision‑making. The scenarios are fictional, and the system scores you using the protocols installed at the time—these might not match your agency's latest updates, and the AI isn't perfect. When treating real patients, always rely on your medical director and your local protocols.")
 
     with st.expander("📖 READ FIRST: Standard Operating Procedure", expanded=True):
         st.markdown("""
         ### **1. Starting the Call**
-        Select the **Category**, **Acuity**, and **Protocol Level** in the sidebar, then click **🚀 START CALL**.
+        Select the **Category**, **Acuity**, and **Protocol Level** in the sidebar, then click **🚀 START CALL**. You can also enter your own dispatch in the **Override Scenario** field to practice a specific call.
         ### **2. Initial Response**
-        Your first response must be **"Scene safe, BSI"**. This will trigger the scene and environment description.
+        Your first response must be **"Scene safe, BSI"**. This will trigger the scene and environment description. If the scene is not safe, call for the appropriate resources before proceeding.
         ### **3. Interaction**
         Treat the chat as your voice and hands. You can **Assess** (*"I check skin"*), **Intervene** (*"I start an IV"*), or **Communicate** (*"I talk to family"*).
         ### **4. Monitor & Timeline**

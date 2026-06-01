@@ -273,7 +273,9 @@ with st.sidebar:
 # --- 7. MAIN UI ---
 if not st.session_state.started:
     st.markdown('<h1 style="text-align:center;">MedSim Academy</h1>', unsafe_allow_html=True)
-    
+
+    st.info("⚠️ **Disclaimer:** MedSim is an AI tutor and can make mistakes. Always follow your training and local protocols when treating patients.")
+
     with st.expander("📖 READ FIRST: Standard Operating Procedure", expanded=True):
         st.markdown("""
         ### **1. Starting the Call**

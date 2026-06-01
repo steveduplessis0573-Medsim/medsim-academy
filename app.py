@@ -274,7 +274,7 @@ with st.sidebar:
 if not st.session_state.started:
     st.markdown('<h1 style="text-align:center;">MedSim Academy</h1>', unsafe_allow_html=True)
 
-    st.info("⚠️ **Disclaimer:** MedSim is an AI tutor and can make mistakes. Always follow your training and local protocols when treating patients.")
+    st.info("⚠️ MedSim Academy is an AI-powered training simulator. Clinical scenarios are fictional and you are evaluated against the protocols that are installed. These may not reflect your agency's most current standards and the AI can make mistakes. For real patient care, always defer to your medical director and local protocols.")
 
     with st.expander("📖 READ FIRST: Standard Operating Procedure", expanded=True):
         st.markdown("""

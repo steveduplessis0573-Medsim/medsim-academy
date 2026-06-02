@@ -17,7 +17,7 @@ def load_resources():
     embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     db = FAISS.load_local("protocol_db", embedder, allow_dangerous_deserialization=True)
     # Using 2.0-Flash as the stable fallback to bypass the 404 errors on '3' and '1.5'
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7, timeout=60)
+    llm = ChatGoogleGenerativeAI(model=st.secrets["GEMINI_MODEL"], temperature=0.7, timeout=60)
     return embedder, db, llm
 
 embeddings, vector_db, llm_engine = load_resources()

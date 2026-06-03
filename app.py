@@ -11,13 +11,23 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 # --- 1. PERFORMANCE CACHING ---
 st.set_page_config(page_title="MedSim Academy", page_icon="🩺", layout="wide")
 
+def _secret(key, default=None):
+    """Read from env var first (Railway), fall back to st.secrets (Streamlit Cloud)."""
+    val = os.environ.get(key)
+    if val is not None:
+        return val
+    try:
+        return st.secrets[key]
+    except Exception:
+        return default
+
 @st.cache_resource
 def load_resources():
     # Cache the 'Brain' so it stays in RAM and never reloads during the session
     embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     db = FAISS.load_local("protocol_db", embedder, allow_dangerous_deserialization=True)
     # Using 2.0-Flash as the stable fallback to bypass the 404 errors on '3' and '1.5'
-    llm = ChatGoogleGenerativeAI(model=st.secrets["GEMINI_MODEL"], temperature=0.7, timeout=60)
+    llm = ChatGoogleGenerativeAI(model=_secret("GEMINI_MODEL", "gemini-2.5-flash"), temperature=0.7, timeout=60)
     return embedder, db, llm
 
 embeddings, vector_db, llm_engine = load_resources()
@@ -28,7 +38,7 @@ def check_password():
         st.markdown('<div style="text-align:center; padding: 50px;"><h1>🚑 MedSim Academy</h1><p>Restricted Access - Enter Credentials</p></div>', unsafe_allow_html=True)
         pwd = st.text_input("Access Code", type="password")
         if pwd:
-            if pwd == st.secrets["APP_PASSWORD"]:
+            if pwd == _secret("APP_PASSWORD"):
                 st.session_state["password_correct"] = True
                 st.rerun()
             else:
@@ -144,10 +154,7 @@ def _get_db_connection():
     falls back to local SQLite otherwise.
     Always ensures the call_metrics table exists.
     """
-    try:
-        db_url = st.secrets["DATABASE_URL"]
-    except (KeyError, Exception):
-        db_url = ""
+    db_url = _secret("DATABASE_URL", "")
 
     if db_url:
         import psycopg2
@@ -455,7 +462,7 @@ if not st.session_state.started:
         st.session_state.timeline = ["Simulation started."]
         
         # 3. DISPATCH
-        sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {cat}\n{st.secrets['SYSTEM_PROMPT_CONTENT'].replace('{mode}', mode)}"
+        sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {cat}\n{_secret('SYSTEM_PROMPT_CONTENT', '').replace('{mode}', mode)}"
         if custom_scenario.strip():
             sys_p += (
                 "\n\n[CUSTOM SCENARIO OVERRIDE — PARAMETER LOCK ACTIVE]\n"

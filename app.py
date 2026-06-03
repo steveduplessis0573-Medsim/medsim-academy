@@ -33,13 +33,22 @@ def load_resources():
 embeddings, vector_db, llm_engine = load_resources()
 
 # --- 2. ACCESS CONTROL ---
+def _auth_token():
+    import hashlib
+    return hashlib.sha256(_secret("APP_PASSWORD", "").encode()).hexdigest()[:20]
+
 def check_password():
+    # Auto-pass if valid token is in URL (survives WebSocket reconnects)
+    if st.query_params.get("auth") == _auth_token():
+        st.session_state["password_correct"] = True
+
     if "password_correct" not in st.session_state:
         st.markdown('<div style="text-align:center; padding: 50px;"><h1>🚑 MedSim Academy</h1><p>Restricted Access - Enter Credentials</p></div>', unsafe_allow_html=True)
         pwd = st.text_input("Access Code", type="password")
         if pwd:
             if pwd == _secret("APP_PASSWORD"):
                 st.session_state["password_correct"] = True
+                st.query_params["auth"] = _auth_token()
                 st.rerun()
             else:
                 st.error("😕 Access Denied.")

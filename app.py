@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import os
 import re
 import random
@@ -11,11 +10,6 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 # --- 1. PERFORMANCE CACHING ---
 st.set_page_config(page_title="MedSim Academy", page_icon="🩺", layout="wide")
-
-_speech_comp = components.declare_component(
-    "speech_input",
-    path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "speech_component"),
-)
 
 def _secret(key, default=None):
     """Read from env var first (Railway), fall back to st.secrets (Streamlit Cloud)."""
@@ -553,34 +547,15 @@ else:
         if st.session_state.get("_db_log_error"):
             st.error(f"⚠️ Analytics logging error: {st.session_state['_db_log_error']}")
 
-        # Voice component — captures speech and returns transcribed text
+        # Dictation tip
         if not st.session_state.sim_finished:
-            voice_result = _speech_comp(key="mic", default=None)
-            if voice_result and voice_result != st.session_state.get("_last_voice", ""):
-                st.session_state["_voice_pending"] = voice_result
-                st.session_state["_last_voice"] = voice_result
-
-            # Show pending voice transcription with confirm / discard
-            if pending := st.session_state.get("_voice_pending"):
-                cv1, cv2, cv3 = st.columns([5, 1, 1])
-                cv1.info(f'🎤 *"{pending}"*')
-                if cv2.button("✓ Send", type="primary", use_container_width=True):
-                    st.session_state["_voice_confirmed"] = pending
-                    st.session_state.pop("_voice_pending", None)
-                    st.rerun()
-                if cv3.button("✗ Clear", use_container_width=True):
-                    st.session_state.pop("_voice_pending", None)
-                    st.rerun()
-
-        # Resolve input — voice confirm takes priority over typed
-        u_input = None
-        if "_voice_confirmed" in st.session_state:
-            u_input = st.session_state.pop("_voice_confirmed")
+            st.caption("🎙️ Tip: Press **Win + H** (Windows) or **Fn Fn** (Mac) to dictate into the chat box below.")
 
         # Student Input
+        u_input = None
         if not st.session_state.sim_finished:
-            typed = st.chat_input("Type action or use 🎤 above...")
-            if typed and not u_input:
+            typed = st.chat_input("Enter action...")
+            if typed:
                 u_input = typed
 
         if u_input and not st.session_state.sim_finished:

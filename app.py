@@ -547,10 +547,6 @@ else:
         if st.session_state.get("_db_log_error"):
             st.error(f"⚠️ Analytics logging error: {st.session_state['_db_log_error']}")
 
-        # Dictation tip
-        if not st.session_state.sim_finished:
-            st.caption("🎙️ Tip: Press **Win + H** (Windows) or **Fn Fn** (Mac) to dictate into the chat box below.")
-
         # Student Input
         u_input = None
         if not st.session_state.sim_finished:

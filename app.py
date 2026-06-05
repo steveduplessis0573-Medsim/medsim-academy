@@ -531,6 +531,16 @@ else:
             st.markdown(f'<div class="log-entry">{entry}</div>', unsafe_allow_html=True)
 
     with col_chat:
+        # Hint pills — top of chat column, above message history
+        if not st.session_state.sim_finished:
+            st.markdown(
+                '<div style="display:flex;gap:10px;margin-bottom:10px;">'
+                '<span style="background:#1a472a;color:#a3d9a5;padding:4px 12px;border-radius:20px;font-size:0.78rem;">🟢 Begin: "Scene safe, BSI"</span>'
+                '<span style="background:#2c2c54;color:#a0a0d0;padding:4px 12px;border-radius:20px;font-size:0.78rem;">🏁 End: Transfer care</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
         for msg in st.session_state.messages:
             if isinstance(msg, (AIMessage, HumanMessage)) and "Dispatch" not in msg.content:
                 clean_text = re.sub(r"--- LOCAL PROTOCOL REFERENCE ---.*--- STUDENT ACTION ---", "", msg.content, flags=re.DOTALL)
@@ -543,17 +553,8 @@ else:
         if st.session_state.get("_db_log_error"):
             st.error(f"⚠️ Analytics logging error: {st.session_state['_db_log_error']}")
 
-        # Hint pills + voice input
+        # Voice component — captures speech and returns transcribed text
         if not st.session_state.sim_finished:
-            st.markdown(
-                '<div style="display:flex;gap:10px;margin-bottom:6px;">'
-                '<span style="background:#1a472a;color:#a3d9a5;padding:4px 12px;border-radius:20px;font-size:0.78rem;">🟢 Begin: "Scene safe, BSI"</span>'
-                '<span style="background:#2c2c54;color:#a0a0d0;padding:4px 12px;border-radius:20px;font-size:0.78rem;">🏁 End: Transfer care</span>'
-                '</div>',
-                unsafe_allow_html=True,
-            )
-
-            # Voice component — captures speech and returns transcribed text
             voice_result = _speech_comp(key="mic", default=None)
             if voice_result and voice_result != st.session_state.get("_last_voice", ""):
                 st.session_state["_voice_pending"] = voice_result

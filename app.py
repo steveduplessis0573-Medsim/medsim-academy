@@ -537,6 +537,16 @@ else:
         if st.session_state.get("_db_log_error"):
             st.error(f"⚠️ Analytics logging error: {st.session_state['_db_log_error']}")
 
+        # Hint pills
+        if not st.session_state.sim_finished:
+            st.markdown(
+                '<div style="display:flex;gap:10px;margin-bottom:6px;">'
+                '<span style="background:#1a472a;color:#a3d9a5;padding:4px 12px;border-radius:20px;font-size:0.78rem;">🟢 Begin: "Scene safe, BSI"</span>'
+                '<span style="background:#2c2c54;color:#a0a0d0;padding:4px 12px;border-radius:20px;font-size:0.78rem;">🏁 End: Transfer care</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
         # Student Input
         if not st.session_state.sim_finished:
             if u_input := st.chat_input("Enter action..."):

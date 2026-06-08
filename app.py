@@ -5,7 +5,8 @@ import random
 import hashlib
 import time
 import sqlite3
-import psycopg2
+import json
+import uuid
 import httpx
 from datetime import datetime
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -181,42 +182,46 @@ def _get_db_connection():
     db_url = _secret("DATABASE_URL", "")
 
     if db_url:
+        import psycopg2
         conn = psycopg2.connect(db_url)
         cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS call_metrics (
-                id          SERIAL PRIMARY KEY,
-                timestamp   TEXT NOT NULL,
-                mode        TEXT, acuity TEXT, category TEXT, complaint TEXT,
-                had_hazard  INTEGER, used_refusal INTEGER,
-                score       INTEGER, pass_fail TEXT, transcript TEXT,
-                student     TEXT DEFAULT 'Anonymous'
-            )
-        """)
-        # Add column if table already existed without it
+        cur.execute("""CREATE TABLE IF NOT EXISTS call_metrics (
+            id SERIAL PRIMARY KEY, timestamp TEXT NOT NULL,
+            mode TEXT, acuity TEXT, category TEXT, complaint TEXT,
+            had_hazard INTEGER, used_refusal INTEGER,
+            score INTEGER, pass_fail TEXT, transcript TEXT,
+            student TEXT DEFAULT 'Anonymous')""")
         try:
             cur.execute("ALTER TABLE call_metrics ADD COLUMN student TEXT DEFAULT 'Anonymous'")
         except Exception:
-            pass   # column already exists
+            pass
+        cur.execute("""CREATE TABLE IF NOT EXISTS live_sessions (
+            session_id TEXT PRIMARY KEY, student TEXT, mode TEXT,
+            messages TEXT, vitals TEXT, timeline TEXT,
+            acuity TEXT, category TEXT, complaint TEXT,
+            active_hazard TEXT, scene_cleared INTEGER, hazard_warned INTEGER,
+            updated_at TEXT)""")
         conn.commit()
         cur.close()
         return conn, True
     else:
         conn = sqlite3.connect("simulation_data.db")
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS call_metrics (
-                id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT    NOT NULL,
-                mode      TEXT, acuity TEXT, category TEXT, complaint TEXT,
-                had_hazard INTEGER, used_refusal INTEGER,
-                score     INTEGER, pass_fail TEXT, transcript TEXT,
-                student   TEXT DEFAULT 'Anonymous'
-            )
-        """)
+        conn.execute("""CREATE TABLE IF NOT EXISTS call_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL,
+            mode TEXT, acuity TEXT, category TEXT, complaint TEXT,
+            had_hazard INTEGER, used_refusal INTEGER,
+            score INTEGER, pass_fail TEXT, transcript TEXT,
+            student TEXT DEFAULT 'Anonymous')""")
         try:
             conn.execute("ALTER TABLE call_metrics ADD COLUMN student TEXT DEFAULT 'Anonymous'")
         except Exception:
-            pass   # column already exists
+            pass
+        conn.execute("""CREATE TABLE IF NOT EXISTS live_sessions (
+            session_id TEXT PRIMARY KEY, student TEXT, mode TEXT,
+            messages TEXT, vitals TEXT, timeline TEXT,
+            acuity TEXT, category TEXT, complaint TEXT,
+            active_hazard TEXT, scene_cleared INTEGER, hazard_warned INTEGER,
+            updated_at TEXT)""")
         conn.commit()
         return conn, False
 
@@ -263,12 +268,134 @@ def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazar
         # Store error in session state — st.warning() before st.rerun() is invisible
         st.session_state["_db_log_error"] = str(e)
 
-# --- 5. INITIAL SESSION STATE ---
+# --- 5. SESSION PERSISTENCE ---
+def _serialize_messages(messages):
+    out = []
+    for m in messages:
+        if isinstance(m, HumanMessage):  out.append({"t": "h", "c": m.content})
+        elif isinstance(m, AIMessage):   out.append({"t": "a", "c": m.content})
+        elif isinstance(m, SystemMessage): out.append({"t": "s", "c": m.content})
+    return json.dumps(out)
+
+def _deserialize_messages(s):
+    msgs = []
+    for item in json.loads(s):
+        if item["t"] == "h": msgs.append(HumanMessage(content=item["c"]))
+        elif item["t"] == "a": msgs.append(AIMessage(content=item["c"]))
+        elif item["t"] == "s": msgs.append(SystemMessage(content=item["c"]))
+    return msgs
+
+def _save_live_session():
+    """Checkpoint active call state to DB after every LLM response."""
+    sid = st.session_state.get("session_id")
+    if not sid or not st.session_state.get("started") or st.session_state.get("sim_finished"):
+        return
+    try:
+        conn, is_pg = _get_db_connection()
+        ph = "%s" if is_pg else "?"
+        hazard = json.dumps(st.session_state.get("active_hazard")) if st.session_state.get("active_hazard") else None
+        vals = (
+            sid,
+            st.session_state.get("student_name", "Anonymous"),
+            st.session_state.get("mode", ""),
+            _serialize_messages(st.session_state.get("messages", [])),
+            json.dumps(st.session_state.get("vitals", {})),
+            json.dumps(st.session_state.get("timeline", [])),
+            st.session_state.get("current_acuity", ""),
+            st.session_state.get("current_category", ""),
+            st.session_state.get("current_complaint", ""),
+            hazard,
+            int(st.session_state.get("scene_cleared", True)),
+            int(st.session_state.get("hazard_warned", False)),
+            datetime.now().isoformat(timespec="seconds"),
+        )
+        cur = conn.cursor()
+        if is_pg:
+            cur.execute(f"""INSERT INTO live_sessions
+                (session_id,student,mode,messages,vitals,timeline,acuity,category,complaint,
+                 active_hazard,scene_cleared,hazard_warned,updated_at)
+                VALUES ({",".join([ph]*13)})
+                ON CONFLICT (session_id) DO UPDATE SET
+                messages=EXCLUDED.messages, vitals=EXCLUDED.vitals, timeline=EXCLUDED.timeline,
+                active_hazard=EXCLUDED.active_hazard, scene_cleared=EXCLUDED.scene_cleared,
+                hazard_warned=EXCLUDED.hazard_warned, updated_at=EXCLUDED.updated_at""", vals)
+        else:
+            cur.execute(f"""INSERT OR REPLACE INTO live_sessions
+                (session_id,student,mode,messages,vitals,timeline,acuity,category,complaint,
+                 active_hazard,scene_cleared,hazard_warned,updated_at)
+                VALUES ({",".join([ph]*13)})""", vals)
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception:
+        pass  # Never let checkpointing crash the sim
+
+def _load_live_session(sid):
+    """Restore a checkpointed session. Returns dict or None."""
+    try:
+        conn, is_pg = _get_db_connection()
+        ph = "%s" if is_pg else "?"
+        cur = conn.cursor()
+        cur.execute(f"""SELECT student,mode,messages,vitals,timeline,acuity,category,complaint,
+            active_hazard,scene_cleared,hazard_warned FROM live_sessions WHERE session_id={ph}""", (sid,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not row:
+            return None
+        return {
+            "student": row[0], "mode": row[1],
+            "messages": _deserialize_messages(row[2]),
+            "vitals": json.loads(row[3]),
+            "timeline": json.loads(row[4]),
+            "acuity": row[5], "category": row[6], "complaint": row[7],
+            "active_hazard": json.loads(row[8]) if row[8] else None,
+            "scene_cleared": bool(row[9]),
+            "hazard_warned": bool(row[10]),
+        }
+    except Exception:
+        return None
+
+def _clear_live_session(sid):
+    """Delete checkpoint when call ends cleanly."""
+    try:
+        conn, is_pg = _get_db_connection()
+        ph = "%s" if is_pg else "?"
+        cur = conn.cursor()
+        cur.execute(f"DELETE FROM live_sessions WHERE session_id={ph}", (sid,))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception:
+        pass
+
+# --- 6. INITIAL SESSION STATE + AUTO-RESTORE ---
 if "messages" not in st.session_state: st.session_state.messages = []
 if "vitals" not in st.session_state: st.session_state.vitals = {"HR": "--", "BP": "--", "RR": "--", "SPO2": "--", "BGL": "--", "TEMP": "--"}
 if "timeline" not in st.session_state: st.session_state.timeline = []
 if "started" not in st.session_state: st.session_state.started = False
 if "sim_finished" not in st.session_state: st.session_state.sim_finished = False
+
+# Auto-restore a dropped session from the URL session ID
+if not st.session_state.started:
+    _sid = st.query_params.get("sid")
+    if _sid:
+        _saved = _load_live_session(_sid)
+        if _saved:
+            st.session_state.session_id     = _sid
+            st.session_state.started        = True
+            st.session_state.sim_finished   = False
+            st.session_state.mode           = _saved["mode"]
+            st.session_state.student_name   = _saved["student"]
+            st.session_state.messages       = _saved["messages"]
+            st.session_state.vitals         = _saved["vitals"]
+            st.session_state.timeline       = _saved["timeline"]
+            st.session_state.current_acuity    = _saved["acuity"]
+            st.session_state.current_category  = _saved["category"]
+            st.session_state.current_complaint = _saved["complaint"]
+            st.session_state.active_hazard  = _saved["active_hazard"]
+            st.session_state.scene_cleared  = _saved["scene_cleared"]
+            st.session_state.hazard_warned  = _saved["hazard_warned"]
 
 # --- SIDEBAR UPDATES ---
 with st.sidebar:
@@ -482,6 +609,8 @@ if not st.session_state.started:
         st.session_state.start_time = datetime.now()
         st.session_state.sim_finished = False
         st.session_state.timeline = ["Simulation started."]
+        st.session_state.session_id = uuid.uuid4().hex[:10]
+        st.query_params["sid"] = st.session_state.session_id
         
         # 3. DISPATCH
         scope_ref = load_scope_reference()
@@ -521,6 +650,7 @@ if not st.session_state.started:
             if dispatch_resp:
                 process_medsim_turn(dispatch_resp.content)
                 st.session_state.messages.append(AIMessage(content=dispatch_resp.content))
+                _save_live_session()
         st.rerun()
 
 else:
@@ -670,6 +800,7 @@ else:
 
                     if "[DEBRIEF]" in resp.content:
                         st.session_state.sim_finished = True
+                        _clear_live_session(st.session_state.get("session_id", ""))
                         had_hz = hasattr(st.session_state, 'active_hazard') and st.session_state.active_hazard is not None
                         used_ref = "[REFUSAL]" in resp.content or "signed refusal" in u_input.lower()
                         log_call_metrics(
@@ -682,4 +813,6 @@ else:
                             used_refusal=used_ref,
                             student=st.session_state.get('student_name', 'Anonymous'),
                         )
+                    else:
+                        _save_live_session()
                     st.rerun()

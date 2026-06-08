@@ -719,7 +719,15 @@ else:
                     hazard = st.session_state.active_hazard
 
                     staging_keywords = ["stage", "staging", "back up", "pull away", "retreat", "wait", "stand by", "distance"]
-                    resource_keywords = [hazard["fix"], "pd", "police", "cop", "911", "resources", "animal control", "power company", "hazmat", "fire dept"]
+                    resource_keywords = [
+                        hazard["fix"],
+                        "pd", "police", "cop", "law enforcement", "sheriff",
+                        "911", "dispatch", "resources", "assistance",
+                        "animal control", "animal",
+                        "power company", "utility company", "utilities", "electric company", "power", "electric", "lineman",
+                        "hazmat", "haz-mat", "decon", "chemical",
+                        "fire dept", "fire department", "fire", "rescue", "engine", "ladder",
+                    ]
 
                     user_staged = any(word in u_input_lower for word in staging_keywords)
                     user_called_help = any(word in u_input_lower for word in resource_keywords)

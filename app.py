@@ -185,16 +185,20 @@ def _get_db_connection():
         import psycopg2
         conn = psycopg2.connect(db_url)
         cur = conn.cursor()
+        # Each DDL committed separately — ALTER TABLE failure aborts the transaction
+        # in PostgreSQL; committing between statements keeps each one independent.
         cur.execute("""CREATE TABLE IF NOT EXISTS call_metrics (
             id SERIAL PRIMARY KEY, timestamp TEXT NOT NULL,
             mode TEXT, acuity TEXT, category TEXT, complaint TEXT,
             had_hazard INTEGER, used_refusal INTEGER,
             score INTEGER, pass_fail TEXT, transcript TEXT,
             student TEXT DEFAULT 'Anonymous')""")
+        conn.commit()
         try:
             cur.execute("ALTER TABLE call_metrics ADD COLUMN student TEXT DEFAULT 'Anonymous'")
+            conn.commit()
         except Exception:
-            pass
+            conn.rollback()   # column already exists — reset aborted transaction
         cur.execute("""CREATE TABLE IF NOT EXISTS live_sessions (
             session_id TEXT PRIMARY KEY, student TEXT, mode TEXT,
             messages TEXT, vitals TEXT, timeline TEXT,

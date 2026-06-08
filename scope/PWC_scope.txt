@@ -1,0 +1,121 @@
+# PWC FRS PATIENT CARE MANUAL — SCOPE AUTHORITY REFERENCE
+# Agency: Prince William County Fire and Rescue
+# Effective: January 20, 2026
+#
+# THIS IS THE AUTHORITATIVE SCOPE REFERENCE FOR MEDSIM DEBRIEF EVALUATION.
+# Consult this file FIRST for all scope determinations. It overrides RAG retrieval.
+# Do NOT flag any authorized item as a scope violation unless specific contraindications listed are present.
+# ─────────────────────────────────────────────────────────────────────────────
+
+## BLS AUTHORIZATIONS — DO NOT FLAG THESE AS ALS VIOLATIONS
+
+ASPIRIN 324 mg PO: All providers. Cardiac chest pain/suspected ACS. NO hypotension contraindication — SBP <100 applies to nitroglycerin only, not aspirin.
+
+EPINEPHRINE IM (1:1000): All providers for anaphylaxis. ≥65 lbs → 0.3 ml IM; <65 lbs → 0.15 ml IM. Repeat once in 5 min if indicated.
+
+IPRATROPIUM BROMIDE: All providers. Always combined with albuterol (2.5 mg + 0.5 mg neb) for first 2 doses. BLS authorized.
+
+ALBUTEROL (first 2 doses with ipratropium): All providers. ALS may continue beyond 2 doses (up to 15 mg cumulative).
+
+ONDANSETRON 4 mg ODT: BLS authorized. ALS may also use IV/IM/IO routes and one repeat dose.
+
+NALOXONE 2 mg IN: BLS authorized. ALS expansion: 0.4 mg IV/IO titrated to respiratory rate (max 4 mg cumulative).
+
+ACETAMINOPHEN 975 mg PO: All providers. Pain/fever. Do NOT flag BLS administration PO as a scope violation.
+
+HEMOSTATIC GAUZE / Wound Packing: BLS authorized for trauma care.
+
+12-LEAD ECG ACQUISITION AND TRANSMISSION: BLS authorized. BLS acquires and transmits within 5 min of patient arrival. BLS does NOT interpret or make STEMI notifications — that is ALS scope only. Do NOT cite any CPR or defibrillation protocol when evaluating 12-lead ECG acquisition.
+
+DUODOTE (Atropine + Pralidoxime): All providers. Nerve agent/organophosphate with ≥2 mild or any severe symptoms. Contraindicated: patients <41 kg.
+
+CPAP INITIATION at 5 cm H2O: BLS and ALS authorized. Pressure titration ABOVE 5 cm H2O is ALS only.
+
+SUPRAGLOTTIC AIRWAY (SGA/I-gel): BLS and ALS authorized.
+
+
+## ALS-AUTHORIZED MEDICATIONS — COMPLETE LIST
+
+ADENOSINE: ALS only. SVT (regular narrow complex, mild symptoms); stable wide complex tach if SVT strongly suspected. 6 mg rapid IVP + 20 ml NS flush; repeat 12 mg if no response. Contraindicated: 2nd/3rd degree AV block, sick sinus syndrome.
+
+ALBUTEROL (ALS-expanded): ALS may continue beyond first 2 doses up to 15 mg cumulative. ALS only for hyperkalemia (5 mg neb) and crush/entrapment (OLMC required). Do not give simultaneously with epinephrine.
+
+AMIODARONE: ALS only. V-Fib/pulseless V-Tach arrest: 300 mg IV/IO bolus, repeat 150 mg q3-5 min (max 450 mg cumulative). Stable wide complex tach or post-ROSC: 150 mg/100 ml NS over 10 min. Torsades: 150 mg/100 ml NS over 10 min. Contraindicated: cardiogenic shock, WPW history, marked sinus bradycardia, 2nd/3rd degree AV block.
+
+ATROPINE SULFATE (Cardiac): ALS only. Symptomatic bradycardia <50 BPM. 1 mg IVP q3-5 min (max 3 mg). Not effective in transplanted hearts.
+
+ATROPINE SULFATE (Toxicology): ALS only. Organophosphate/nerve agent poisoning, cholinergic toxidrome, beta-blocker toxicity, CCB toxicity. Titrate to improved respiratory effort. No absolute contraindication for severe organophosphate poisoning.
+
+CALCIUM CHLORIDE: ALS only. Hyperkalemia with ECG changes, CCB toxicity, hypocalcemia, magnesium toxicity, cardiac arrest with suspected hyperkalemia/CCB. 1 g IV/IO adult. Contraindicated: digoxin toxicity, cardiac arrest not from listed causes. Do NOT mix with sodium bicarbonate.
+
+DEXTROSE 10%: ALS only (IV/IO route). BGL <60 adult/pediatric; BGL <40 neonate; coma of unknown origin. BLS = oral glucose gel PO only. Contraindicated: stroke/acute brain injury with BGL >60.
+
+DIPHENHYDRAMINE (Benadryl): ALS (IV/IO/IM routes). Allergic reactions, anaphylaxis, acute dystonic reactions. 1 mg/kg IV/IM/IO (max 50 mg) for allergic; 25 mg IV/IM for dystonic reactions. Contraindicated: newborns/premature infants.
+
+EPINEPHRINE IV (1:10,000): ALS only. Cardiac arrest all rhythms: 1 mg IV/IO q3-5 min. Anaphylaxis with imminent cardiopulmonary arrest: 0.5 mg IV/IO.
+
+EPINEPHRINE PRESSOR (Drip and Push Dose): ALS only. Any shock state not responding to fluids (cardiogenic, septic, neurogenic, anaphylactic), post-ROSC hypotension, bradycardia refractory to atropine, hemodynamically significant overdose. Drip: 1 mg epi in 250 ml NS (4 mcg/ml), infuse 2-10 mcg/min IV/IO to SBP ≥90 or MAP ≥65. Push dose: 10 mcg/ml solution, 10 mcg IV/IO q3 min. Do NOT flag for any shock state as a scope violation.
+
+FENTANYL: ALS only. Chest pain/suspected ACS, moderate-severe pain, sedation for cardioversion/pacing, combative post-ROSC patient. ≥70 kg: 100 mcg IV/IO/IM/IN; <70 kg: 50 mcg; q10 min; max cumulative 300 mcg. ONLY flag as CRITICAL VIOLATION if ACTIVE RESPIRATORY DEPRESSION is present at time of administration (critically low SpO2, severely increased work of breathing). Caution but NOT automatic violation: SBP <90, elderly, head trauma.
+
+GLUCAGON: ALS only. Hypoglycemia without IV access: 1 mg IM. Beta-blocker or CCB toxicity: 3 mg IV/IO slow push.
+
+HYDROXOCOBALAMIN (Cyanokit): ALS only. Moderate-severe cyanide toxicity (AMS, seizures, hemodynamic compromise, cardiac arrest) with smoke inhalation or known cyanide exposure. 5 g IV over 15 min; may repeat once. Requires dedicated IV line.
+
+KETAMINE: ALS only. Sub-dissociative pain: 0.25 mg/kg IV/IO/IM/IN (max 25 mg) q20 min (max 100 mg). Pre-cardioversion sedation: same dosing. BEHAVIORAL/AGITATION: PARAMEDIC ONLY — 3-4 mg/kg IM. Must administer IV slowly — rapid IV push causes respiratory depression. Contraindicated: severe cardiovascular disease, psychosis, infants <3 months. Pain only additional contraindication: severe HTN (>180 systolic or >120 diastolic).
+
+KETOROLAC: ALS only (IV/IO/IM routes). Pain management, suspected renal colic. 30 mg adult; 0.5 mg/kg pediatric (max 30 mg). BLS scope = NOT authorized for parenteral administration. Contraindicated: aspirin/NSAID sensitivity, renal disease, pregnancy, <2 yr, GI ulcers, bleeding disorders.
+
+LIDOCAINE 2% (IO pain): ALS only. IO infusion pain. 40 mg IO over 2 min, dwell 1 min, flush with NS.
+
+MAGNESIUM SULFATE: ALS only. Torsades de Pointes — stable: 2 g/10 ml NS over 2 min; arrest: 2 g IV/IO bolus. Bronchospasm refractory to albuterol/ipratropium: 2 g/100 ml NS over 10 min. Eclampsia/pre-eclampsia: 4 g/100 ml NS over 10 min. Contraindicated: renal failure. Do NOT give for suspected CHF in bronchospasm.
+
+METHYLPREDNISOLONE: ALS only. Asthma/COPD exacerbation, anaphylaxis. 62.5 mg IV/IM/IO adult; 2 mg/kg pediatric (max 62.5 mg, >2 yr only). Note: onset is hours — no immediate clinical effect expected during call.
+
+METOPROLOL: ALS only. Unstable/symptomatic A-Fib with HR >150, NO WPW history. 5 mg IV/IO q5 min (max 15 mg cumulative). Contraindicated: bradycardia, 2nd/3rd degree AV block, cardiogenic shock, WPW.
+
+MIDAZOLAM: ALS only. Active seizures/status epilepticus, cocaine toxicity, behavioral emergencies, pre-cardioversion sedation, eclampsia, agitated head injury. ≤65 yr: 5 mg IV/IM/IN/IO q5 min (max 10 mg); >65 yr: 2.5 mg (max 5 mg). Contraindicated: SBP <90, respiratory insufficiency, acute alcohol intoxication, neonates. Must administer IV slowly.
+
+MORPHINE SULFATE: ALS only. ACS chest pain: 0.1 mg/kg slow IV/IO/IM (max 5 mg) q15 min (max 10 mg cumulative). Pulmonary edema with SBP >150 after CPAP/nitrates: 0.05-0.1 mg/kg (max 5 mg) q5 min (max 15 mg cumulative). Pain: 0.1 mg/kg (max 5 mg) q15 min (max 10 mg). Contraindicated: SBP <90 or MAP <65, respiratory depression.
+
+NITROGLYCERIN: All providers: 0.4 mg SL q5 min (max 1.2 mg cumulative including patient's own doses) for ACS and pulmonary edema. ALS ESCALATION — pulmonary edema with persistent hypertension: after 0.4 mg, if still hypertensive and symptomatic → 0.8 mg SL q5 min targeting 20% SBP reduction. Contraindicated: SBP <100 or MAP <65, SBP drop ≥30 mmHg from baseline, PDE5 inhibitor within 48 hours. Caution: inferior wall MI/RV infarct.
+
+ONDANSETRON (Zofran) ALS-expanded: 4 mg via any route (ODT, IV, IM, IO), repeat once in 10 min (max 8 mg cumulative). Pediatric: 0.1 mg/kg IV/IO (max 4 mg). Contraindicated: Long-QT syndrome. Requires cardiac monitoring after IV administration.
+
+RACEMIC EPINEPHRINE (2.25%): ALS only. Pediatric croup/partial upper airway obstruction with stridor at rest and respiratory distress. 0.5 ml of 2.25% + 3 ml NS via nebulizer. Contraindicated: epiglottitis.
+
+SODIUM BICARBONATE: ALS only. Cardiac arrest with suspected acidosis/hyperkalemia; TCA overdose; wide complex tach from hyperkalemia or TCA; chlorine/chloramine exposure (nebulized, OLMC required); crush/entrapment (OLMC required). 1 mEq/kg IV/IO (max 50 mEq). Contraindicated: CHF, alkalotic states. Do NOT mix with calcium chloride or catecholamines in same line.
+
+TRANEXAMIC ACID (TXA): ALS only. Hemorrhagic shock with trauma (SBP <90 OR HR >110, within 3 hr of injury, age >15 yr): 1 g/100 ml NS over 10 min IV/IO. Postpartum hemorrhage within 24 hr: 1 g slow IV/IO over 1-2 min. Epistaxis/post-tonsillectomy (>3 yr): per protocol. Contraindicated: thrombotic event within 24 hr, isolated head injury, traumatic arrest >5 min CPR without ROSC, time since injury >3 hr, non-hemorrhagic shock.
+
+
+## ALS-AUTHORIZED PROCEDURES — DO NOT FLAG AS SCOPE VIOLATIONS FOR ALS PROVIDERS
+
+- Peripheral IV access (14-24G)
+- Intraosseous (IO) access
+- PICC/indwelling catheter access (life-threatening situations, no other access available)
+- Orotracheal intubation (ETT) — Paramedic only; 2 attempts max; waveform capnography confirmation required
+- Needle cricothyrotomy / Quicktrach — Paramedic only; OLMC required if time permits
+- Needle thoracostomy (chest decompression) — Requires ALL 3: severe resp distress with hypoxia/bagging resistance + unilateral absent lung sounds + hemodynamic compromise; OR bilateral in traumatic arrest
+- Transcutaneous cardiac pacing — HR <50 with severe unstable symptoms
+- Synchronized cardioversion — Unstable tachydysrhythmia with pulse
+- Manual defibrillation (LP-15 manual mode) — BLS uses AED only; LP-15 manual mode is ALS only
+- Posterior ECG (V7-V9) — Suspected posterior STEMI
+- Right-sided ECG — Suspected RV infarct in inferior MI
+- STEMI identification and Code STEMI notification — BLS acquires/transmits only; interpretation and notification is ALS
+- CPAP pressure titration above 5 cm H2O — BLS initiates at 5 cm only; ALS may titrate upward
+- Termination of resuscitation — ALS only with OLMC authorization
+
+
+## ACP-ONLY — FLAG AS VIOLATION IF STANDARD ALS ATTEMPTS WITHOUT ACP ON SCENE
+
+- Low Titer O+ Whole Blood (LTOWB) administration
+- Surgical cricothyrotomy (scalpel technique)
+- Point-of-Care Ultrasound (POCUS)
+
+
+## VIOLATION SEVERITY — APPLY IN ALL DEBRIEFS
+
+CRITICAL VIOLATION: The student performed an action explicitly outside their authorized scope, administered a medication with a hard contraindication present at the time of administration, or failed to perform a mandatory protocol step. These reduce the score and may cause a FAIL.
+
+CLINICAL CONCERN (NOT a CRITICAL VIOLATION): The student performed an action that IS within protocol authorization, but demonstrated questionable clinical judgment — poor timing, aggressive dosing given hemodynamic trajectory, or suboptimal risk-benefit assessment. Label these as "CLINICAL CONCERN." Do NOT classify as CRITICAL VIOLATIONS and do NOT penalize equally to true protocol violations. A student making a within-protocol decision that carries clinical risk receives coaching, not a violation citation.

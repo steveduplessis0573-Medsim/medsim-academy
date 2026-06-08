@@ -22,6 +22,16 @@ def _secret(key, default=None):
         return default
 
 @st.cache_resource
+def load_scope_reference():
+    """Load the agency scope authority file. Cached — reads once per app lifetime."""
+    scope_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scope", "PWC_scope.txt")
+    try:
+        with open(scope_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception:
+        return ""
+
+@st.cache_resource
 def load_resources():
     # Cache the 'Brain' so it stays in RAM and never reloads during the session
     embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
@@ -471,7 +481,10 @@ if not st.session_state.started:
         st.session_state.timeline = ["Simulation started."]
         
         # 3. DISPATCH
+        scope_ref = load_scope_reference()
         sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {cat}\n{_secret('SYSTEM_PROMPT_CONTENT', '').replace('{mode}', mode)}"
+        if scope_ref:
+            sys_p += f"\n\n[SCOPE REFERENCE — AUTHORITATIVE FOR ALL SCOPE DETERMINATIONS]\n{scope_ref}"
         if custom_scenario.strip():
             sys_p += (
                 "\n\n[CUSTOM SCENARIO OVERRIDE — PARAMETER LOCK ACTIVE]\n"

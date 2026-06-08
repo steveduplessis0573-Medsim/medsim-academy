@@ -2,6 +2,11 @@ import streamlit as st
 import os
 import re
 import random
+import hashlib
+import time
+import sqlite3
+import psycopg2
+import httpx
 from datetime import datetime
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -44,7 +49,6 @@ embeddings, vector_db, llm_engine = load_resources()
 
 # --- 2. ACCESS CONTROL ---
 def _auth_token():
-    import hashlib
     return hashlib.sha256(_secret("APP_PASSWORD", "").encode()).hexdigest()[:20]
 
 def check_password():
@@ -60,6 +64,7 @@ def check_password():
                 st.session_state["password_correct"] = True
                 st.query_params["auth"] = _auth_token()
                 st.rerun()
+
             else:
                 st.error("😕 Access Denied.")
         return False
@@ -176,7 +181,6 @@ def _get_db_connection():
     db_url = _secret("DATABASE_URL", "")
 
     if db_url:
-        import psycopg2
         conn = psycopg2.connect(db_url)
         cur = conn.cursor()
         cur.execute("""
@@ -198,7 +202,6 @@ def _get_db_connection():
         cur.close()
         return conn, True
     else:
-        import sqlite3
         conn = sqlite3.connect("simulation_data.db")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS call_metrics (
@@ -499,7 +502,6 @@ if not st.session_state.started:
             HumanMessage(content=f"Dispatch {dispatch_instruction}.")
         ]
         
-        import time, httpx
         with st.spinner("Dispatching..."):
             dispatch_resp = None
             for attempt in range(3):
@@ -571,7 +573,6 @@ else:
             if True:
                 with st.chat_message("user"): st.markdown(u_input)
                 
-                import time, httpx
 
                 # --- TWO-STEP SCENE SAFETY FIREWALL ---
                 hazard_active = (

@@ -48,6 +48,32 @@ def load_resources():
 
 embeddings, vector_db, llm_engine = load_resources()
 
+# --- LLM RETRY HELPER ---
+def _invoke_with_retry(messages, max_attempts=4):
+    """
+    Invoke llm_engine with exponential back-off for transient API errors.
+    Handles Google 503/429/UNAVAILABLE and httpx network errors.
+    Delays: 3s → 6s → 12s before giving up.
+    """
+    delay = 3
+    last_err = None
+    for attempt in range(max_attempts):
+        try:
+            return llm_engine.invoke(messages)
+        except Exception as e:
+            err_str = str(e).lower()
+            retryable = any(x in err_str for x in [
+                "503", "502", "529", "unavailable", "overloaded",
+                "429", "resource exhausted", "quota", "try again",
+                "remotedisconnected", "connectionreset", "connectionerror",
+            ])
+            if retryable and attempt < max_attempts - 1:
+                last_err = e
+                time.sleep(delay * (2 ** attempt))  # 3s, 6s, 12s
+            else:
+                raise
+    raise last_err  # satisfies type checker; unreachable in practice
+
 # --- 2. ACCESS CONTROL ---
 def _auth_token():
     return hashlib.sha256(_secret("APP_PASSWORD", "").encode()).hexdigest()[:20]
@@ -637,20 +663,15 @@ if not st.session_state.started:
         
         with st.spinner("Dispatching..."):
             dispatch_resp = None
-            for attempt in range(3):
-                try:
-                    dispatch_resp = llm_engine.invoke(st.session_state.messages)
-                    break
-                except Exception:
-                    if attempt < 2:
-                        time.sleep(2)
-                    else:
-                        st.error("Could not connect to simulation engine. Please try again.")
-                        for key in ["started", "mode", "start_time", "sim_finished", "timeline",
-                                    "active_hazard", "scene_cleared", "hazard_warned",
-                                    "current_complaint", "current_acuity", "current_category"]:
-                            st.session_state.pop(key, None)
-                        st.rerun()
+            try:
+                dispatch_resp = _invoke_with_retry(st.session_state.messages)
+            except Exception:
+                st.error("Could not connect to simulation engine. Please try again.")
+                for key in ["started", "mode", "start_time", "sim_finished", "timeline",
+                            "active_hazard", "scene_cleared", "hazard_warned",
+                            "current_complaint", "current_acuity", "current_category"]:
+                    st.session_state.pop(key, None)
+                st.rerun()
             if dispatch_resp:
                 process_medsim_turn(dispatch_resp.content)
                 st.session_state.messages.append(AIMessage(content=dispatch_resp.content))
@@ -744,13 +765,11 @@ else:
                         )
                         scene_history = st.session_state.messages + [HumanMessage(content=scene_directive)]
                         feedback = "[SCENE] Scene safety assessment in progress. Stand by."
-                        for attempt in range(3):
-                            try:
-                                resp = llm_engine.invoke(scene_history)
-                                feedback = resp.content
-                                break
-                            except (httpx.RemoteProtocolError, httpx.HTTPError):
-                                time.sleep(2)
+                        try:
+                            resp = _invoke_with_retry(scene_history)
+                            feedback = resp.content
+                        except Exception:
+                            pass  # keep fallback feedback; student can re-send
                         st.session_state.messages.append(HumanMessage(content=u_input))
                         st.session_state.messages.append(AIMessage(content=feedback))
                         st.session_state.timeline.append("Arrived on scene; hazard encountered.")
@@ -792,19 +811,12 @@ else:
                     temp_history = st.session_state.messages + [HumanMessage(content=enriched)]
 
                     with st.spinner("Responding..."):
-                        max_retries = 3
                         resp = None
-                        for attempt in range(max_retries):
-                            try:
-                                resp = llm_engine.invoke(temp_history)
-                                break
-                            except (httpx.RemoteProtocolError, httpx.HTTPError) as net_err:
-                                if attempt < max_retries - 1:
-                                    st.warning(f"Network hiccup. Reconnecting... (Attempt {attempt + 1}/{max_retries})")
-                                    time.sleep(2)
-                                else:
-                                    st.error("The Google API server is dropping requests. Please check your connection or try again.")
-                                    raise net_err
+                        try:
+                            resp = _invoke_with_retry(temp_history)
+                        except Exception:
+                            st.error("⚠️ The AI engine is temporarily unavailable (Google API overloaded). Your progress is saved — please re-send your last message in a moment.")
+                            st.stop()
 
                     st.session_state.messages.append(HumanMessage(content=u_input))
                     st.session_state.messages.append(AIMessage(content=resp.content))

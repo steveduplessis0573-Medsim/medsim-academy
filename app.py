@@ -165,36 +165,55 @@ def process_medsim_turn(text):
 
 def clean_for_display(text):
     """
-    Strip the [LOG]+[VITAL] documentation footer block as a unit.
-    Render any remaining (narrative) [VITAL] tags inline when they carry real
-    values; strip silently when all are placeholders ('--').
+    Process [LOG] and [VITAL] tags for chat display.
+
+    Strategy:
+    - The LLM always appends a [LOG]+[VITAL] footer. In that footer, [VITAL]
+      values are '--' for most responses, but contain real values when the
+      student explicitly requested vitals.
+    - Strip the footer [LOG] line; if its [VITAL] tags carry real values, save
+      them for injection into the narrative (so the student sees them in chat).
+    - If the LLM also put [VITAL] tags directly in the narrative body, those
+      take priority and the saved footer values are discarded (no duplicates).
     """
-    # Strip [LOG] lines AND any [VITAL] lines that immediately follow them.
-    # The system prompt mandates a [LOG] then [VITAL] footer on every response;
-    # removing them together prevents footer vitals from appearing twice when
-    # the LLM also reported vitals inline in the narrative body.
+    _vital_pat = r"\[VITAL\]\s*(HR|BP|SPO2|RR|BGL|TEMP)[:\-]\s*([^\[\n\r]+)"
+
+    # --- Pass 1: capture footer vitals then strip the [LOG]+[VITAL] block ---
+    footer_real_vitals = []  # list of (KEY, "value") tuples from the footer
+
+    def _strip_footer(m):
+        pairs = re.findall(_vital_pat, m.group(0), re.IGNORECASE)
+        for key, val in pairs:
+            clean_val = val.strip()
+            if clean_val.strip("-").strip():          # skip '--' placeholders
+                footer_real_vitals.append((key.upper(), clean_val))
+        return ""
+
     text = re.sub(
         r"\[LOG\][^\n\r]*(\n[ \t]*\[VITAL\][^\n\r]*)*",
-        "", text, flags=re.IGNORECASE,
+        _strip_footer,
+        text, flags=re.IGNORECASE,
     )
 
-    # Check remaining (narrative) vitals for real values
-    raw_values = re.findall(
-        r"\[VITAL\]\s*(?:HR|BP|SPO2|RR|BGL|TEMP)[:\-]\s*([^\[\n\r]+)",
-        text, re.IGNORECASE,
-    )
-    has_real_vitals = any(v.strip().strip("-").strip() for v in raw_values)
+    # --- Pass 2: handle any [VITAL] tags still in the narrative body ---
+    narrative_raw = re.findall(_vital_pat, text, re.IGNORECASE)
+    has_narrative_vitals = any(v.strip().strip("-").strip() for _, v in narrative_raw)
 
-    if has_real_vitals:
+    if has_narrative_vitals:
+        # Format narrative [VITAL] tags inline as code spans; footer values
+        # are discarded (narrative always wins to avoid duplicates).
         def _fmt(m):
-            # Trailing space keeps adjacent code spans from merging in Markdown
             return f"`{m.group(1).upper()}: {m.group(2).strip()}` "
-        text = re.sub(
-            r"\[VITAL\]\s*(HR|BP|SPO2|RR|BGL|TEMP)[:\-]\s*([^\[\n\r]+)",
-            _fmt, text, flags=re.IGNORECASE,
-        )
+        text = re.sub(_vital_pat, _fmt, text, flags=re.IGNORECASE)
     else:
+        # No narrative vitals — strip any stray [VITAL] tags that slipped through
         text = re.sub(r"\[VITAL\][^\n\r]*", "", text, flags=re.IGNORECASE)
+
+        # If the footer contained real values, append them as a formatted vitals
+        # line so the student sees what they asked for in the chat.
+        if footer_real_vitals:
+            vitals_line = "  ".join(f"`{k}: {v}`" for k, v in footer_real_vitals)
+            text = text.rstrip() + "\n\n" + vitals_line
 
     return text.strip()
 

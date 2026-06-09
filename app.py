@@ -156,7 +156,7 @@ def process_medsim_turn(text):
         is_duplicate = any(clean_entry in existing_log for existing_log in st.session_state.timeline)
         
         if not is_duplicate:
-            ts = datetime.now() - st.session_state.start_time
+            ts = datetime.now() - st.session_state.get("start_time", datetime.now())
             timestamp = f"T+{ts.seconds//60:02d}:{ts.seconds%60:02d}"
             st.session_state.timeline.append(f"{timestamp} | {clean_entry}")
     
@@ -445,6 +445,7 @@ if not st.session_state.started:
             st.session_state.active_hazard  = _saved["active_hazard"]
             st.session_state.scene_cleared  = _saved["scene_cleared"]
             st.session_state.hazard_warned  = _saved["hazard_warned"]
+            st.session_state.start_time     = datetime.now()  # reconnect — real origin lost, reset clock
 
 # --- SIDEBAR UPDATES ---
 with st.sidebar:

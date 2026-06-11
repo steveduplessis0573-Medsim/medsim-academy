@@ -102,7 +102,7 @@ TRANEXAMIC ACID (TXA): ALS only. Hemorrhagic shock with trauma (SBP <90 OR HR >1
 - Manual defibrillation (LP-15 manual mode) — BLS uses AED only; LP-15 manual mode is ALS only
 - Posterior ECG (V7-V9) — Suspected posterior STEMI
 - Right-sided ECG — Suspected RV infarct in inferior MI
-- STEMI identification and Code STEMI notification — BLS acquires/transmits only; interpretation and notification is ALS
+- STEMI identification and Code STEMI notification — BLS acquires/transmits only; interpretation and notification is ALS. Failure by an ALS provider to verbally identify STEMI criteria and notify the receiving facility = CRITICAL VIOLATION (not a Clinical Concern). Door-to-balloon time is directly outcome-dependent; cath lab activation is a mandatory step, not optional clinical judgment.
 - CPAP pressure titration above 5 cm H2O — BLS initiates at 5 cm only; ALS may titrate upward
 - Termination of resuscitation — ALS only with OLMC authorization
 

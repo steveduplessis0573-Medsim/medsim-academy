@@ -25,7 +25,7 @@ ACETAMINOPHEN 975 mg PO: All providers. Pain/fever. Do NOT flag BLS administrati
 
 HEMOSTATIC GAUZE / Wound Packing: BLS authorized for trauma care.
 
-12-LEAD ECG ACQUISITION AND TRANSMISSION: BLS authorized. BLS acquires and transmits within 5 min of patient arrival. BLS does NOT interpret or make STEMI notifications — that is ALS scope only. Do NOT cite any CPR or defibrillation protocol when evaluating 12-lead ECG acquisition.
+12-LEAD ECG ACQUISITION AND TRANSMISSION: BLS authorized. Acquisition and transmission are separate required actions — acquire first, transmit second. BLS does NOT manually interpret the tracing. However, if the LP-15 automated algorithm indicates STEMI (machine-generated alert), BLS IS authorized to call Code STEMI and notify the receiving facility. Manual interpretation of waveform morphology remains ALS scope only. Do NOT cite any CPR or defibrillation protocol when evaluating 12-lead ECG acquisition.
 
 DUODOTE (Atropine + Pralidoxime): All providers. Nerve agent/organophosphate with ≥2 mild or any severe symptoms. Contraindicated: patients <41 kg.
 
@@ -102,7 +102,8 @@ TRANEXAMIC ACID (TXA): ALS only. Hemorrhagic shock with trauma (SBP <90 OR HR >1
 - Manual defibrillation (LP-15 manual mode) — BLS uses AED only; LP-15 manual mode is ALS only
 - Posterior ECG (V7-V9) — Suspected posterior STEMI
 - Right-sided ECG — Suspected RV infarct in inferior MI
-- STEMI identification and Code STEMI notification — BLS acquires/transmits only; interpretation and notification is ALS. Failure by an ALS provider to verbally identify STEMI criteria and notify the receiving facility = CRITICAL VIOLATION (not a Clinical Concern). Door-to-balloon time is directly outcome-dependent; cath lab activation is a mandatory step, not optional clinical judgment.
+- STEMI identification (manual waveform interpretation) — ALS only. BLS cannot read the tracing and call STEMI based on their own interpretation.
+- Code STEMI notification — ALS must identify STEMI criteria and notify the receiving facility. BLS may also call Code STEMI ONLY when the LP-15 automated algorithm generates a machine STEMI alert. Failure by an ALS provider to call Code STEMI when STEMI criteria are present = CRITICAL VIOLATION. Failure by BLS to call Code STEMI when the LP-15 machine indicates STEMI = CRITICAL VIOLATION. Door-to-balloon time is directly outcome-dependent; cath lab activation is mandatory.
 - CPAP pressure titration above 5 cm H2O — BLS initiates at 5 cm only; ALS may titrate upward
 - Termination of resuscitation — ALS only with OLMC authorization
 

@@ -215,7 +215,41 @@ def clean_for_display(text):
             vitals_line = "  ".join(f"`{k}: {v}`" for k, v in footer_real_vitals)
             text = text.rstrip() + "\n\n" + vitals_line
 
+    # Strip [ECG: slug] tag — the chat loop handles image display separately
+    text = re.sub(r"\[ECG:[^\]]*\]", "", text, flags=re.IGNORECASE)
+
     return text.strip()
+
+
+# ── ECG image helpers ─────────────────────────────────────────────────────────
+ECG_SLUGS = {
+    "normal_sinus":    "Normal Sinus Rhythm",
+    "sinus_tach":      "Sinus Tachycardia",
+    "sinus_brady":     "Sinus Bradycardia",
+    "afib":            "Atrial Fibrillation",
+    "aflutter":        "Atrial Flutter",
+    "svt":             "SVT",
+    "inferior_stemi":  "Inferior STEMI / MI",
+    "anterior_stemi":  "Anterior STEMI / MI",
+    "lateral_stemi":   "Lateral STEMI / MI",
+    "lbbb":            "LBBB",
+    "rbbb":            "RBBB",
+    "avb1":            "1st Degree AV Block",
+    "avb2":            "2nd Degree AV Block",
+    "avb3":            "3rd Degree AV Block",
+    "wpw":             "WPW",
+    "st_depression":   "ST Depression (Ischemia)",
+    "hyperacute_t":    "Hyperacute T / Subendo Injury",
+    "pvc":             "Ventricular Premature Complex",
+}
+
+def _ecg_image_path(slug):
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, "ecg_images", f"{slug}.png")
+
+def _extract_ecg_slug(text):
+    m = re.search(r"\[ECG:\s*([a-z0-9_]+)\]", text, re.IGNORECASE)
+    return m.group(1).lower().strip() if m else None
 
 def _get_db_connection():
     """
@@ -728,10 +762,15 @@ else:
         for msg in st.session_state.messages:
             if isinstance(msg, (AIMessage, HumanMessage)) and "Dispatch" not in msg.content:
                 clean_text = re.sub(r"--- LOCAL PROTOCOL REFERENCE ---.*--- STUDENT ACTION ---", "", msg.content, flags=re.DOTALL)
+                ecg_slug   = _extract_ecg_slug(clean_text)
                 clean_text = clean_for_display(clean_text)
                 role = "assistant" if isinstance(msg, AIMessage) else "user"
                 with st.chat_message(role, avatar="🚑" if role=="assistant" else "🩺"):
                     st.markdown(clean_text)
+                    if ecg_slug and ecg_slug in ECG_SLUGS:
+                        img_path = _ecg_image_path(ecg_slug)
+                        if os.path.exists(img_path):
+                            st.image(img_path, caption=f"12-Lead ECG — {ECG_SLUGS[ecg_slug]}", use_container_width=True)
 
         # Show any database logging error that survived the rerun
         if st.session_state.get("_db_log_error"):

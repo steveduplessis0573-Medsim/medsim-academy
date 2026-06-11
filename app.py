@@ -771,6 +771,8 @@ else:
                         img_path = _ecg_image_path(ecg_slug)
                         if os.path.exists(img_path):
                             st.image(img_path, caption=f"12-Lead ECG — {ECG_SLUGS[ecg_slug]}", use_container_width=True)
+                        else:
+                            st.caption(f"⚠ ECG image not found: {img_path}")
 
         # Show any database logging error that survived the rerun
         if st.session_state.get("_db_log_error"):

@@ -72,7 +72,7 @@ def _invoke_with_retry(messages, max_attempts=4):
                 time.sleep(delay * (2 ** attempt))  # 3s, 6s, 12s
             else:
                 raise
-    raise last_err  # satisfies type checker; unreachable in practice
+    raise last_err or RuntimeError("_invoke_with_retry: no attempts made")
 
 # --- 2. ACCESS CONTROL ---
 def _auth_token():
@@ -760,8 +760,9 @@ else:
             )
 
         for msg in st.session_state.messages:
-            if isinstance(msg, (AIMessage, HumanMessage)) and "Dispatch" not in msg.content:
-                clean_text = re.sub(r"--- LOCAL PROTOCOL REFERENCE ---.*--- STUDENT ACTION ---", "", msg.content, flags=re.DOTALL)
+            raw_content = msg.content if isinstance(msg.content, str) else ""
+            if isinstance(msg, (AIMessage, HumanMessage)) and "Dispatch" not in raw_content:
+                clean_text = re.sub(r"--- LOCAL PROTOCOL REFERENCE ---.*--- STUDENT ACTION ---", "", raw_content, flags=re.DOTALL)
                 ecg_slug   = _extract_ecg_slug(clean_text)
                 clean_text = clean_for_display(clean_text)
                 role = "assistant" if isinstance(msg, AIMessage) else "user"

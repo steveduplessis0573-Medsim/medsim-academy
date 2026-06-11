@@ -163,7 +163,14 @@ def process_medsim_turn(text):
     # 3. Clean the text for display
     return re.sub(r"\[VITAL\].*?(\n|$)|\[LOG\].*?(\n|$)", "", text, flags=re.IGNORECASE).strip()
 
-def clean_for_display(text):
+_VITALS_REQUEST_KW = re.compile(
+    r"\bvital|pulse|heart rate|\bbp\b|blood pressure|spo2|o2 sat|oxygen"
+    r"|resp rate|\brr\b|temperature|\btemp\b|\bbgl\b|blood glucose"
+    r"|full set|baseline|trending",
+    re.IGNORECASE,
+)
+
+def clean_for_display(text, show_vitals_inline: bool = True):
     """
     Process [LOG] and [VITAL] tags for chat display.
 
@@ -209,14 +216,13 @@ def clean_for_display(text):
         # No narrative vitals — strip any stray [VITAL] tags that slipped through
         text = re.sub(r"\[VITAL\][^\n\r]*", "", text, flags=re.IGNORECASE)
 
-        # If the footer contained real values, append them as a formatted vitals
-        # line so the student sees what they asked for in the chat.
-        if footer_real_vitals:
+        # Only surface footer vitals in the chat when the student asked for them.
+        if footer_real_vitals and show_vitals_inline:
             vitals_line = "  ".join(f"`{k}: {v}`" for k, v in footer_real_vitals)
             text = text.rstrip() + "\n\n" + vitals_line
 
-    # Strip [ECG: slug] tag — the chat loop handles image display separately
-    text = re.sub(r"\[ECG:[^\]]*\]", "", text, flags=re.IGNORECASE)
+    # Strip [ECG] slug tag — the chat loop handles image display separately
+    text = re.sub(r"\[ECG\]\s*\S+", "", text, flags=re.IGNORECASE)
 
     return text.strip()
 
@@ -248,7 +254,7 @@ def _ecg_image_path(slug):
     return os.path.join(base, "ecg_images", f"{slug}.png")
 
 def _extract_ecg_slug(text):
-    m = re.search(r"\[ECG:\s*([a-z0-9_]+)\]", text, re.IGNORECASE)
+    m = re.search(r"\[ECG\]\s*([a-z0-9_]+)", text, re.IGNORECASE)
     return m.group(1).lower().strip() if m else None
 
 def _get_db_connection():
@@ -759,12 +765,16 @@ else:
                 unsafe_allow_html=True,
             )
 
+        prev_vitals_requested = False
         for msg in st.session_state.messages:
             raw_content = msg.content if isinstance(msg.content, str) else ""
+            if isinstance(msg, HumanMessage):
+                prev_vitals_requested = bool(_VITALS_REQUEST_KW.search(raw_content))
             if isinstance(msg, (AIMessage, HumanMessage)) and "Dispatch" not in raw_content:
                 clean_text = re.sub(r"--- LOCAL PROTOCOL REFERENCE ---.*--- STUDENT ACTION ---", "", raw_content, flags=re.DOTALL)
                 ecg_slug   = _extract_ecg_slug(clean_text)
-                clean_text = clean_for_display(clean_text)
+                show_vitals = prev_vitals_requested if isinstance(msg, AIMessage) else True
+                clean_text = clean_for_display(clean_text, show_vitals_inline=show_vitals)
                 role = "assistant" if isinstance(msg, AIMessage) else "user"
                 with st.chat_message(role, avatar="🚑" if role=="assistant" else "🩺"):
                     st.markdown(clean_text)

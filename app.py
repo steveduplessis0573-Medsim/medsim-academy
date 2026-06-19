@@ -120,17 +120,45 @@ st.markdown("""
         }
 
         /* 3. The Monitor "Rugged Tablet" Look */
-        .vital-card { 
-            background-color: #000; 
-            border: 2px solid #444; 
-            border-radius: 10px; 
-            padding: 12px; 
+        .vital-card {
+            background-color: #000;
+            border: 2px solid #444;
+            border-radius: 10px;
+            padding: 12px;
             margin-bottom: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
         .vital-label { color: #00FF00; font-size: 0.7rem; text-transform: uppercase; opacity: 0.8; }
         .vital-value { color: #00FF00; font-size: 1.4rem; font-weight: bold; font-family: 'Courier New', monospace; }
         .log-entry { font-size: 0.85rem; color: #00FF00; font-family: monospace; border-bottom: 1px solid #222; padding: 4px 0; }
+
+        /* ── Mobile layout ───────────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            /* Disable sticky monitor panel — columns are stacked, not side-by-side */
+            div[data-testid="stColumn"]:nth-of-type(3) > div {
+                position: relative !important;
+                top: 0 !important;
+            }
+
+            /* Compact vital cards so 2-up grid fits on a phone */
+            .vital-card {
+                padding: 8px 6px;
+                margin-bottom: 5px;
+                border-radius: 7px;
+            }
+            .vital-label { font-size: 0.6rem; }
+            .vital-value { font-size: 1.05rem; }
+
+            /* Tighter timeline entries */
+            .log-entry { font-size: 0.75rem; padding: 3px 0; }
+
+            /* Hint pills — let them wrap on narrow screens */
+            div[data-testid="stMarkdown"] > div > p {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -740,20 +768,8 @@ if not st.session_state.started:
 
 else:
     col_chat, _, col_data = st.columns([2, 0.1, 1.2])
-    
-    with col_data:
-        st.subheader("💓 Patient Monitor")
-        c1, c2 = st.columns(2)
-        v_items = list(st.session_state.vitals.items())
-        for i, (k, v) in enumerate(v_items):
-            target_col = c1 if i % 2 == 0 else c2
-            target_col.markdown(f'<div class="vital-card"><span class="vital-label">{k}</span><br><span class="vital-value">{v}</span></div>', unsafe_allow_html=True)
-        
-        st.divider()
-        st.subheader("🕒 Timeline")
-        for entry in reversed(st.session_state.timeline):
-            st.markdown(f'<div class="log-entry">{entry}</div>', unsafe_allow_html=True)
 
+    # col_chat rendered first so it sits above col_data when columns stack on mobile
     with col_chat:
         # Hint pills — top of chat column, above message history
         if not st.session_state.sim_finished:
@@ -912,3 +928,21 @@ else:
                     else:
                         _save_live_session()
                     st.rerun()
+
+    # Monitor panel — rendered after col_chat so it stacks below chat on mobile
+    with col_data:
+        st.subheader("💓 Patient Monitor")
+        c1, c2 = st.columns(2)
+        v_items = list(st.session_state.vitals.items())
+        for i, (k, v) in enumerate(v_items):
+            target_col = c1 if i % 2 == 0 else c2
+            target_col.markdown(
+                f'<div class="vital-card"><span class="vital-label">{k}</span><br>'
+                f'<span class="vital-value">{v}</span></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.divider()
+        with st.expander("🕒 Timeline", expanded=True):
+            for entry in reversed(st.session_state.timeline):
+                st.markdown(f'<div class="log-entry">{entry}</div>', unsafe_allow_html=True)

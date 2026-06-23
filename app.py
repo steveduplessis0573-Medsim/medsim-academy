@@ -311,6 +311,7 @@ def _get_db_connection():
             id SERIAL PRIMARY KEY, timestamp TEXT NOT NULL,
             mode TEXT, acuity TEXT, category TEXT, complaint TEXT,
             had_hazard INTEGER, used_refusal INTEGER,
+            narrative TEXT,
             score INTEGER, pass_fail TEXT, transcript TEXT,
             student TEXT DEFAULT 'Anonymous')""")
         conn.commit()
@@ -318,7 +319,12 @@ def _get_db_connection():
             cur.execute("ALTER TABLE call_metrics ADD COLUMN student TEXT DEFAULT 'Anonymous'")
             conn.commit()
         except Exception:
-            conn.rollback()   # column already exists — reset aborted transaction
+            conn.rollback()
+        try:
+            cur.execute("ALTER TABLE call_metrics ADD COLUMN narrative TEXT")
+            conn.commit()
+        except Exception:
+            conn.rollback()   # column already exists
         cur.execute("""CREATE TABLE IF NOT EXISTS live_sessions (
             session_id TEXT PRIMARY KEY, student TEXT, mode TEXT,
             messages TEXT, vitals TEXT, timeline TEXT,
@@ -338,6 +344,10 @@ def _get_db_connection():
             student TEXT DEFAULT 'Anonymous')""")
         try:
             conn.execute("ALTER TABLE call_metrics ADD COLUMN student TEXT DEFAULT 'Anonymous'")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE call_metrics ADD COLUMN narrative TEXT")
         except Exception:
             pass
         conn.execute("""CREATE TABLE IF NOT EXISTS live_sessions (
@@ -360,6 +370,11 @@ def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazar
         pf_m    = re.search(r'(?:\[RESULT\]|RESULT\b)[^A-Za-z\n]{0,20}(PASS|FAIL)', response_text, re.IGNORECASE)
         pass_fail = pf_m.group(1).upper() if pf_m else None
 
+        # --- Extract model PCR narrative ---
+        narr_m  = re.search(r'\[NARRATIVE\]\s*(.*?)(?=\[(?:SCORE|RESULT|LOG|VITAL|DEBRIEF)\]|$)',
+                            response_text, re.DOTALL | re.IGNORECASE)
+        narrative = narr_m.group(1).strip() if narr_m else None
+
         # --- Build readable transcript from message history ---
         lines = []
         for msg in st.session_state.get("messages", []):
@@ -377,10 +392,10 @@ def log_call_metrics(mode, acuity, category, complaint, response_text, had_hazar
         cur.execute(
             f"""INSERT INTO call_metrics
                 (timestamp, mode, acuity, category, complaint,
-                 had_hazard, used_refusal, score, pass_fail, transcript, student)
-               VALUES ({",".join([ph]*11)})""",
+                 had_hazard, used_refusal, score, pass_fail, transcript, student, narrative)
+               VALUES ({",".join([ph]*12)})""",
             (timestamp, mode, acuity, category, complaint,
-             int(had_hazard), int(used_refusal), score, pass_fail, transcript, student),
+             int(had_hazard), int(used_refusal), score, pass_fail, transcript, student, narrative),
         )
         conn.commit()
         cur.close()
@@ -805,6 +820,14 @@ else:
                 role = "assistant" if isinstance(msg, AIMessage) else "user"
                 with st.chat_message(role, avatar="🚑" if role=="assistant" else "🩺"):
                     st.markdown(clean_text)
+                    # Model PCR narrative — shown at end of debrief message
+                    if isinstance(msg, AIMessage) and "[DEBRIEF]" in raw_content:
+                        narr_m = re.search(r'\[NARRATIVE\]\s*(.*?)(?=\[(?:SCORE|RESULT|LOG|VITAL)\]|$)',
+                                           raw_content, re.DOTALL | re.IGNORECASE)
+                        if narr_m:
+                            with st.expander("📋 Model PCR Narrative", expanded=False):
+                                st.caption("⚠️ This is a model narrative reflecting ideal care — not the student's actual actions.")
+                                st.markdown(narr_m.group(1).strip())
                     if ecg_slug and ecg_slug in ECG_SLUGS:
                         img_path = _ecg_image_path(ecg_slug)
                         if os.path.exists(img_path):

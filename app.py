@@ -104,19 +104,26 @@ if not check_password():
 st.markdown("""
     <style>
         /* 1. Force all parent containers to allow sticky children to 'float' */
-        [data-testid="stAppViewBlockContainer"], 
-        [data-testid="stVerticalBlock"], 
+        [data-testid="stAppViewBlockContainer"],
+        [data-testid="stVerticalBlock"],
         [data-testid="stHorizontalBlock"] {
             overflow: visible !important;
         }
 
-        /* 2. Target the 3rd column's internal container specifically */
-        div[data-testid="stColumn"]:nth-of-type(3) > div {
+        /* 2. Sticky monitor panel — must be on the column itself with align-self:flex-start
+              so the flex container doesn't stretch it to full height (which breaks sticky) */
+        div[data-testid="stColumn"]:nth-of-type(3) {
             position: -webkit-sticky !important;
             position: sticky !important;
             top: 2rem !important;
             z-index: 1000 !important;
-            height: fit-content !important;
+            align-self: flex-start !important;
+        }
+
+        /* Cap height so vitals + timeline never overflow the viewport */
+        div[data-testid="stColumn"]:nth-of-type(3) > div {
+            max-height: calc(100vh - 5rem) !important;
+            overflow-y: auto !important;
         }
 
         /* 3. The Monitor "Rugged Tablet" Look */
@@ -540,8 +547,12 @@ with st.sidebar:
     
     if st.session_state.started:
         if st.button("🔄 Reset Academy"):
-            for key in ["messages", "vitals", "timeline", "started", "sim_finished", "start_time", "current_complaint", "current_acuity", "current_category"]:
-                if key in st.session_state: del st.session_state[key]
+            for key in [
+                "messages", "vitals", "timeline", "started", "sim_finished",
+                "start_time", "current_complaint", "current_acuity", "current_category",
+                "active_hazard", "scene_cleared", "hazard_warned", "mode", "session_id",
+            ]:
+                st.session_state.pop(key, None)
             st.rerun()
 
 # --- 7. MAIN UI ---

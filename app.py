@@ -259,6 +259,9 @@ def clean_for_display(text, show_vitals_inline: bool = True):
     # Strip [ECG] slug tag — the chat loop handles image display separately
     text = re.sub(r"\[ECG\]\s*\S+", "", text, flags=re.IGNORECASE)
 
+    # Strip [NARRATIVE] block — the chat loop renders it in an expander separately
+    text = re.sub(r"\[NARRATIVE\].*", "", text, flags=re.IGNORECASE | re.DOTALL)
+
     return text.strip()
 
 

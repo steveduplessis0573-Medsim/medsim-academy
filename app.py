@@ -27,10 +27,10 @@ def _secret(key, default=None):
     except Exception:
         return default
 
-@st.cache_resource
-def load_scope_reference():
-    """Load the agency scope authority file. Cached — reads once per app lifetime."""
-    scope_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scope", "PWC_scope.txt")
+def load_scope_reference(standard: str = "PWC") -> str:
+    """Load the appropriate scope file — PWC local protocols or NREMT national standards."""
+    fname = "NREMT_scope.txt" if standard == "NREMT" else "PWC_scope.txt"
+    scope_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scope", fname)
     try:
         with open(scope_path, "r", encoding="utf-8") as f:
             return f.read()
@@ -540,6 +540,11 @@ if not st.session_state.started:
 # --- SIDEBAR UPDATES ---
 with st.sidebar:
     st.title("📟 Control Center")
+    standard = st.radio("Standard", ["PWC Protocols", "NREMT"], horizontal=True,
+                        disabled=st.session_state.started,
+                        help="PWC: evaluated against local Prince William County protocols. NREMT: evaluated against National EMS Education Standards.")
+    st.session_state.standard = "NREMT" if standard == "NREMT" else "PWC"
+
     cat = st.selectbox("Category", ["Medical", "Trauma", "Pediatric", "Cardiac"], disabled=st.session_state.started)
     acuity = st.select_slider("Acuity", options=["Easy", "Moderate", "Hard", "Critical"], disabled=st.session_state.started)
     mode = st.radio("Protocol Level", ["BLS", "ALS"], disabled=st.session_state.started)
@@ -757,10 +762,12 @@ if not st.session_state.started:
         st.query_params["sid"] = st.session_state.session_id
         
         # 3. DISPATCH
-        scope_ref = load_scope_reference()
-        sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {cat}\n{_secret('SYSTEM_PROMPT_CONTENT', '').replace('{mode}', mode)}"
+        active_standard = st.session_state.get("standard", "PWC")
+        scope_ref = load_scope_reference(active_standard)
+        scope_label = "NATIONAL EMS EDUCATION STANDARDS (NREMT)" if active_standard == "NREMT" else "LOCAL PROTOCOL REFERENCE — PWC"
+        sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {cat}\nEVALUATION STANDARD: {active_standard}\n{_secret('SYSTEM_PROMPT_CONTENT', '').replace('{mode}', mode)}"
         if scope_ref:
-            sys_p += f"\n\n[SCOPE REFERENCE — AUTHORITATIVE FOR ALL SCOPE DETERMINATIONS]\n{scope_ref}"
+            sys_p += f"\n\n[{scope_label} — AUTHORITATIVE FOR ALL SCOPE DETERMINATIONS]\n{scope_ref}"
         if custom_scenario.strip():
             sys_p += (
                 "\n\n[CUSTOM SCENARIO OVERRIDE — PARAMETER LOCK ACTIVE]\n"

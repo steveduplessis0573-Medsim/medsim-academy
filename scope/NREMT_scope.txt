@@ -1,0 +1,133 @@
+# NREMT / NATIONAL EMS EDUCATION STANDARDS — SCOPE AUTHORITY REFERENCE
+# Source: National EMS Education Standards (NHTSA, 2021 revision)
+#         NREMT Exam Content Outlines — EMT and Paramedic
+# Evaluation Level: National Registry / NSES (not agency-specific protocols)
+#
+# THIS IS THE AUTHORITATIVE SCOPE REFERENCE FOR MEDSIM NREMT MODE.
+# Consult this file FIRST for all scope determinations. It overrides RAG retrieval.
+# Cite findings as: "per National EMS Education Standards" or "per NREMT competencies."
+# Do NOT reference local agency protocols or page numbers in NREMT mode debriefs.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+## EMT AUTHORIZATIONS (BLS MODE) — DO NOT FLAG THESE AS VIOLATIONS
+
+OXYGEN THERAPY: All providers. Nasal cannula 1-6 LPM; non-rebreather mask 10-15 LPM; BVM with reservoir. Titrate to SpO2 ≥ 94% in most patients; COPD — titrate to 88-92%.
+
+AIRWAY ADJUNCTS: OPA (unconscious patients without gag reflex); NPA (semi-conscious or gag reflex present). Suction — rigid (Yankauer) or flexible catheter. All EMT authorized.
+
+BAG-VALVE-MASK (BVM) VENTILATION: EMT authorized. 1 breath every 5-6 seconds (adult); 1 breath every 3-5 seconds (pediatric). Use 2-person technique when available.
+
+ASPIRIN 324-325 mg PO: EMT authorized. Suspected ACS / chest pain of cardiac origin. Contraindicated: true aspirin allergy, active GI bleed, patient already took full dose.
+
+NITROGLYCERIN 0.4 mg SL: EMT authorized (patient's own prescription or protocol). Suspected ACS / angina. Max 3 doses q5 min. Contraindicated: SBP < 100, PDE5 inhibitor use within 48-72 hours, suspected inferior/RV MI with hypotension.
+
+EPINEPHRINE AUTO-INJECTOR (1:1,000): EMT authorized. Anaphylaxis/severe allergic reaction. Adult (≥ 30 kg): 0.3 mg IM auto-injector. Pediatric (< 30 kg): 0.15 mg IM auto-injector. May repeat once in 5-15 min if no improvement. Do NOT flag auto-injector use as a scope violation for EMTs.
+
+ALBUTEROL (MDI or SVN): EMT authorized — assist patient with their own inhaler OR administer per protocol. Bronchospasm / reactive airway disease / asthma. 2.5 mg via SVN or 2 puffs MDI. Contraindicated: HR > 150 with symptoms (use clinical judgment).
+
+ORAL GLUCOSE GEL: EMT authorized. Hypoglycemia with confirmed low BGL in a patient who is conscious and able to protect their airway. Do NOT administer to unconscious or seizing patients.
+
+NALOXONE (Narcan): EMT authorized. 2 mg intranasal (IN) or 0.4 mg IM. Suspected opioid overdose with respiratory depression. May repeat in 2-4 min. Note: short duration — patient may re-sedate before hospital arrival.
+
+ACTIVATED CHARCOAL 1 g/kg PO (max 50 g): EMT authorized where protocols permit. Ingested poisoning within 1 hour, patient alert and able to protect airway. Contraindicated: altered mental status, caustic/corrosive ingestion, hydrocarbon ingestion.
+
+CPAP: EMT authorized per NSES. Initiate at 5 cm H2O for respiratory distress / suspected pulmonary edema. Contraindicated: vomiting, AMS, BP < 90, facial trauma preventing seal.
+
+AED / SEMI-AUTOMATIC DEFIBRILLATION: EMT authorized. Shockable rhythms (VF/pulseless VT). Follow AED prompts. Resume CPR immediately after shock — do not delay for rhythm check.
+
+CPR: All providers. 30:2 ratio (adult/pediatric with single rescuer); continuous compressions with advanced airway. Rate 100-120/min, depth 2-2.4 inches adult, 2 inches pediatric.
+
+HEMORRHAGE CONTROL: Tourniquet application, wound packing, direct pressure. EMT authorized for all bleeding control including junctional wounds.
+
+SPINAL MOTION RESTRICTION: EMT authorized. Apply based on mechanism and clinical findings. NREMT expects selective spinal immobilization — not automatic C-collar on every trauma.
+
+SPLINTING: EMT authorized. Traction splint for mid-shaft femur fractures. Rigid/soft splints for extremity injuries. Assess PMS before and after.
+
+BLOOD GLUCOSE MONITORING: EMT authorized. Check BGL in any patient with AMS, suspected diabetic emergency, or altered behavior.
+
+PULSE OXIMETRY / CAPNOGRAPHY: EMT monitoring. SpO2 continuous during transport. ETCO2 monitoring with advanced airway.
+
+12-LEAD ECG ACQUISITION: EMT authorized per current NSES (acquisition and transmission only). EMTs do NOT interpret — forward to medical direction or receiving facility.
+
+OBSTETRIC / DELIVERY: EMT authorized. Normal delivery, nuchal cord management, meconium suctioning, newborn resuscitation basics.
+
+
+## PARAMEDIC AUTHORIZATIONS (ALS MODE) — DO NOT FLAG AS VIOLATIONS
+
+VASCULAR ACCESS: IV (peripheral — any gauge), IO (tibial, humeral, sternal per device). PICC/central line access permitted in life-threatening situations if no other access available.
+
+ENDOTRACHEAL INTUBATION (ETT): Paramedic authorized. Direct laryngoscopy or video laryngoscopy. Confirm with waveform capnography — mandatory. 2 attempts maximum before moving to surgical airway.
+
+SUPRAGLOTTIC AIRWAY (SGA / LMA / King LT): Paramedic and EMT authorized as rescue airway.
+
+NEEDLE CRICOTHYROTOMY / SURGICAL CRICOTHYROTOMY: Paramedic authorized. Failed airway — cannot intubate, cannot oxygenate (CICO situation).
+
+NEEDLE THORACOSTOMY: Paramedic authorized. Tension pneumothorax — severe respiratory distress + absent unilateral breath sounds + hemodynamic compromise.
+
+SYNCHRONIZED CARDIOVERSION: Paramedic authorized. Unstable tachydysrhythmia with pulse. 100-200 J biphasic initial.
+
+MANUAL DEFIBRILLATION: Paramedic authorized. VF / pulseless VT. 200 J biphasic (or manufacturer recommendation) — resume CPR immediately.
+
+TRANSCUTANEOUS PACING: Paramedic authorized. Symptomatic bradycardia unresponsive to atropine.
+
+12-LEAD ECG ACQUISITION AND INTERPRETATION: Paramedic authorized. Identify STEMI criteria and activate cath lab (Code STEMI) if present. Failure to identify and notify = CRITICAL VIOLATION.
+
+ADENOSINE: Paramedic. SVT (regular narrow-complex). 6 mg rapid IVP + 20 ml NS flush; 12 mg if no response. Contraindicated: 2nd/3rd degree AV block, WPW with irregular rhythm.
+
+ALBUTEROL (extended): Paramedic may continue beyond initial 2 doses; use for hyperkalemia (5 mg SVN). Do not administer simultaneously with epinephrine.
+
+AMIODARONE: Paramedic. VF/pulseless VT arrest: 300 mg IVP, repeat 150 mg. Stable VT: 150 mg over 10 min. Contraindicated: cardiogenic shock, 2nd/3rd degree AV block.
+
+ATROPINE (cardiac): Paramedic. Symptomatic bradycardia < 60 BPM. 0.5-1.0 mg IVP q3-5 min, max 3 mg. Ineffective in denervated (transplanted) hearts.
+
+ATROPINE (toxicology): Paramedic. Organophosphate/nerve agent poisoning. Titrate to secretion reduction, no maximum dose in true toxidrome.
+
+BENZODIAZEPINES (Midazolam/Diazepam/Lorazepam): Paramedic. Seizures, sedation, pre-cardioversion, behavioral emergency. Midazolam: 2.5-5 mg IV/IM/IN. Diazepam: 5-10 mg IV. Contraindicated: SBP < 90, respiratory insufficiency.
+
+CALCIUM CHLORIDE: Paramedic. Hyperkalemia with ECG changes, CCB toxicity, hypocalcemia. 1 g IV/IO. Contraindicated: digoxin toxicity.
+
+DEXTROSE (D10W or D50W): Paramedic (IV/IO route). Confirmed hypoglycemia with AMS. D10W preferred. Contraindicated: stroke/suspected intracranial event with BGL > 60.
+
+DIPHENHYDRAMINE (Benadryl): Paramedic. Allergic reactions, acute dystonic reactions. 25-50 mg IV/IM.
+
+DOPAMINE INFUSION: Paramedic. Cardiogenic shock, symptomatic hypotension. 2-20 mcg/kg/min IV infusion.
+
+EPINEPHRINE IV (1:10,000): Paramedic. Cardiac arrest all rhythms: 1 mg IV/IO q3-5 min. Severe anaphylaxis/imminent arrest: 0.1-0.5 mg IV/IO.
+
+EPINEPHRINE INFUSION (push-dose / drip): Paramedic. Shock not responding to fluids, post-ROSC hypotension, refractory bradycardia. Push-dose: 10-20 mcg IV boluses. Drip: 2-10 mcg/min.
+
+FENTANYL: Paramedic. Pain management, procedural sedation. 1-2 mcg/kg IV/IO/IM/IN. Caution: respiratory depression, hypotension, elderly/frail patients.
+
+GLUCAGON: Paramedic. Hypoglycemia without IV access: 1 mg IM. Beta-blocker/CCB toxicity: 3 mg IV slow push.
+
+KETAMINE: Paramedic. Sub-dissociative pain (0.1-0.3 mg/kg IV), procedural sedation (1-2 mg/kg IV), excited delirium/behavioral emergency (4-5 mg/kg IM). Contraindicated: severe HTN, known schizophrenia, age < 3 months.
+
+LIDOCAINE: Paramedic. Ventricular dysrhythmias, IO pain (40 mg IO before infusion). 1-1.5 mg/kg IVP for dysrhythmia.
+
+MAGNESIUM SULFATE: Paramedic. Torsades de Pointes: 2 g IV over 2 min (arrest) or 10 min (stable). Severe asthma refractory to bronchodilators: 2 g IV over 20 min. Eclampsia: 4-6 g IV over 15-20 min.
+
+MORPHINE SULFATE: Paramedic. Pain, pulmonary edema (with SBP > 100). 2-4 mg IV q5-10 min. Contraindicated: SBP < 90, severe respiratory depression.
+
+NITROGLYCERIN IV/SL (ALS expanded): Paramedic. SL same as EMT. IV drip for refractory pulmonary edema or hypertensive emergency: 10-20 mcg/min titrate.
+
+ONDANSETRON (Zofran): Paramedic (all routes including IV/IM). 4 mg IV/IM/ODT. Nausea/vomiting, post-opioid nausea. Contraindicated: known prolonged QT.
+
+SODIUM BICARBONATE: Paramedic. TCA overdose, suspected acidosis in arrest, hyperkalemia with cardiac involvement. 1 mEq/kg IV/IO.
+
+VASOPRESSIN: Paramedic. Cardiac arrest (alternative to epinephrine, per some protocols). 40 units IVP once.
+
+
+## AEMT SCOPE NOTE
+# If AEMT mode is added in future: AEMT scope sits between EMT and Paramedic.
+# AEMT adds: IV/IO access, D10W/D50W, limited vasopressors, sublingual NTG administration,
+# SVN albuterol/ipratropium, and non-visualization airway adjuncts. No intubation.
+
+
+## VIOLATION SEVERITY — APPLY IN ALL NREMT MODE DEBRIEFS
+
+CRITICAL VIOLATION: The provider performed an action explicitly outside their certification level per NSES, administered a medication with a hard contraindication present, or failed to perform a mandatory skill expected of a competent provider at that level. Cite as: "per National EMS Education Standards [EMT/Paramedic] competencies." These reduce the score and may result in FAIL.
+
+CLINICAL CONCERN (NOT a CRITICAL VIOLATION): The provider made a within-scope decision that carries clinical risk — poor timing, suboptimal sequencing, or questionable judgment — but did not cross a scope boundary or violate a hard contraindication. Label as "CLINICAL CONCERN." Do NOT penalize equally to true violations. Coach, do not cite.
+
+SCOPE BOUNDARY NOTE: In NREMT mode, do not cite agency-specific protocols, page numbers, or PWC-specific drug thresholds. Evaluate solely against NSES competencies and standard national EMS practice.

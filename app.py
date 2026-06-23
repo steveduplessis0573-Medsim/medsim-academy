@@ -27,10 +27,10 @@ def _secret(key, default=None):
     except Exception:
         return default
 
-@st.cache_resource
-def load_scope_reference():
-    """Load the agency scope authority file. Cached — reads once per app lifetime."""
-    scope_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scope", "PWC_scope.txt")
+def load_scope_reference(standard: str = "PWC") -> str:
+    """Load the appropriate scope file — PWC local protocols or NREMT national standards."""
+    fname = "NREMT_scope.txt" if standard == "NREMT" else "PWC_scope.txt"
+    scope_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scope", fname)
     try:
         with open(scope_path, "r", encoding="utf-8") as f:
             return f.read()
@@ -103,16 +103,22 @@ if not check_password():
 # --- CSS: THE "STAY PUT" MONITOR ---
 st.markdown("""
     <style>
-        /* 1. Force all parent containers to allow sticky children to 'float' */
+        /* 1. Allow sticky to work — no overflow clipping on ancestors */
         [data-testid="stAppViewBlockContainer"],
-        [data-testid="stVerticalBlock"],
-        [data-testid="stHorizontalBlock"] {
+        [data-testid="stVerticalBlock"] {
             overflow: visible !important;
         }
 
-        /* 2. Sticky monitor panel — must be on the column itself with align-self:flex-start
-              so the flex container doesn't stretch it to full height (which breaks sticky) */
-        div[data-testid="stColumn"]:nth-of-type(3) {
+        /* 2. Parent flex row: align-items:flex-start so columns shrink to content
+              height instead of stretching — required for sticky to activate */
+        [data-testid="stHorizontalBlock"] {
+            overflow: visible !important;
+            align-items: flex-start !important;
+        }
+
+        /* 3. Sticky monitor: target the last column (always col_data regardless
+              of render order). align-self:flex-start reinforces the parent rule. */
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
             position: -webkit-sticky !important;
             position: sticky !important;
             top: 2rem !important;
@@ -120,8 +126,8 @@ st.markdown("""
             align-self: flex-start !important;
         }
 
-        /* Cap height so vitals + timeline never overflow the viewport */
-        div[data-testid="stColumn"]:nth-of-type(3) > div {
+        /* 4. Cap the inner content so a long timeline can't push vitals off screen */
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child > div {
             max-height: calc(100vh - 5rem) !important;
             overflow-y: auto !important;
         }
@@ -258,6 +264,9 @@ def clean_for_display(text, show_vitals_inline: bool = True):
 
     # Strip [ECG] slug tag — the chat loop handles image display separately
     text = re.sub(r"\[ECG\]\s*\S+", "", text, flags=re.IGNORECASE)
+
+    # Strip [NARRATIVE] block — the chat loop renders it in an expander separately
+    text = re.sub(r"\[NARRATIVE\].*", "", text, flags=re.IGNORECASE | re.DOTALL)
 
     return text.strip()
 
@@ -540,6 +549,11 @@ if not st.session_state.started:
 # --- SIDEBAR UPDATES ---
 with st.sidebar:
     st.title("📟 Control Center")
+    standard = st.radio("Standard", ["PWC Protocols", "NREMT"], horizontal=True,
+                        disabled=st.session_state.started,
+                        help="PWC: evaluated against local Prince William County protocols. NREMT: evaluated against National EMS Education Standards.")
+    st.session_state.standard = "NREMT" if standard == "NREMT" else "PWC"
+
     cat = st.selectbox("Category", ["Medical", "Trauma", "Pediatric", "Cardiac"], disabled=st.session_state.started)
     acuity = st.select_slider("Acuity", options=["Easy", "Moderate", "Hard", "Critical"], disabled=st.session_state.started)
     mode = st.radio("Protocol Level", ["BLS", "ALS"], disabled=st.session_state.started)
@@ -554,21 +568,6 @@ with st.sidebar:
     custom_scenario = st.text_input("Override Scenario:", placeholder="e.g., Snake bite to the hand", disabled=st.session_state.started)
     st.caption("Leave blank to use the random pool.")
 
-    st.divider()
-    st.subheader("📚 Protocol Lookup")
-    search_q = st.text_input("Manual Search...", placeholder="e.g. CPAP indications")
-    if st.button("Search PDF"):
-        if search_q: st.info(get_protocol_context(search_q))
-    
-    if st.session_state.started:
-        if st.button("🔄 Reset Academy"):
-            for key in [
-                "messages", "vitals", "timeline", "started", "sim_finished",
-                "start_time", "current_complaint", "current_acuity", "current_category",
-                "active_hazard", "scene_cleared", "hazard_warned", "mode", "session_id",
-            ]:
-                st.session_state.pop(key, None)
-            st.rerun()
 
 # --- 7. MAIN UI ---
 if not st.session_state.started:
@@ -757,10 +756,12 @@ if not st.session_state.started:
         st.query_params["sid"] = st.session_state.session_id
         
         # 3. DISPATCH
-        scope_ref = load_scope_reference()
-        sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {cat}\n{_secret('SYSTEM_PROMPT_CONTENT', '').replace('{mode}', mode)}"
+        active_standard = st.session_state.get("standard", "PWC")
+        scope_ref = load_scope_reference(active_standard)
+        scope_label = "NATIONAL EMS EDUCATION STANDARDS (NREMT)" if active_standard == "NREMT" else "LOCAL PROTOCOL REFERENCE — PWC"
+        sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {cat}\nEVALUATION STANDARD: {active_standard}\n{_secret('SYSTEM_PROMPT_CONTENT', '').replace('{mode}', mode)}"
         if scope_ref:
-            sys_p += f"\n\n[SCOPE REFERENCE — AUTHORITATIVE FOR ALL SCOPE DETERMINATIONS]\n{scope_ref}"
+            sys_p += f"\n\n[{scope_label} — AUTHORITATIVE FOR ALL SCOPE DETERMINATIONS]\n{scope_ref}"
         if custom_scenario.strip():
             sys_p += (
                 "\n\n[CUSTOM SCENARIO OVERRIDE — PARAMETER LOCK ACTIVE]\n"

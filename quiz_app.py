@@ -1,9 +1,9 @@
 import os, json, re, hashlib
 import streamlit as st
-from langchain_chroma import Chroma
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="MedSim Quiz", page_icon="🧠", layout="centered")
@@ -41,17 +41,12 @@ if not check_password():
 # ── Resources ──────────────────────────────────────────────────────────────────
 @st.cache_resource
 def load_resources():
-    api_key = _secret("GOOGLE_API_KEY")
-    embed = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key)
-    base  = os.path.dirname(os.path.abspath(__file__))
-    db    = Chroma(persist_directory=os.path.join(base, "chroma_db"), embedding_function=embed)
+    embed = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    db    = FAISS.load_local("protocol_db", embed, allow_dangerous_deserialization=True)
     llm   = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash-preview-04-17",
-        google_api_key=api_key,
-        safety_settings={
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        },
+        model=_secret("GEMINI_MODEL", "gemini-2.5-flash"),
         temperature=0.4,
+        timeout=60,
     )
     return db, llm
 

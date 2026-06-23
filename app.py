@@ -103,16 +103,22 @@ if not check_password():
 # --- CSS: THE "STAY PUT" MONITOR ---
 st.markdown("""
     <style>
-        /* 1. Force all parent containers to allow sticky children to 'float' */
+        /* 1. Allow sticky to work — no overflow clipping on ancestors */
         [data-testid="stAppViewBlockContainer"],
-        [data-testid="stVerticalBlock"],
-        [data-testid="stHorizontalBlock"] {
+        [data-testid="stVerticalBlock"] {
             overflow: visible !important;
         }
 
-        /* 2. Sticky monitor panel — must be on the column itself with align-self:flex-start
-              so the flex container doesn't stretch it to full height (which breaks sticky) */
-        div[data-testid="stColumn"]:nth-of-type(3) {
+        /* 2. Parent flex row: align-items:flex-start so columns shrink to content
+              height instead of stretching — required for sticky to activate */
+        [data-testid="stHorizontalBlock"] {
+            overflow: visible !important;
+            align-items: flex-start !important;
+        }
+
+        /* 3. Sticky monitor: target the last column (always col_data regardless
+              of render order). align-self:flex-start reinforces the parent rule. */
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
             position: -webkit-sticky !important;
             position: sticky !important;
             top: 2rem !important;
@@ -120,8 +126,8 @@ st.markdown("""
             align-self: flex-start !important;
         }
 
-        /* Cap height so vitals + timeline never overflow the viewport */
-        div[data-testid="stColumn"]:nth-of-type(3) > div {
+        /* 4. Cap the inner content so a long timeline can't push vitals off screen */
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child > div {
             max-height: calc(100vh - 5rem) !important;
             overflow-y: auto !important;
         }
@@ -562,21 +568,6 @@ with st.sidebar:
     custom_scenario = st.text_input("Override Scenario:", placeholder="e.g., Snake bite to the hand", disabled=st.session_state.started)
     st.caption("Leave blank to use the random pool.")
 
-    st.divider()
-    st.subheader("📚 Protocol Lookup")
-    search_q = st.text_input("Manual Search...", placeholder="e.g. CPAP indications")
-    if st.button("Search PDF"):
-        if search_q: st.info(get_protocol_context(search_q))
-    
-    if st.session_state.started:
-        if st.button("🔄 Reset Academy"):
-            for key in [
-                "messages", "vitals", "timeline", "started", "sim_finished",
-                "start_time", "current_complaint", "current_acuity", "current_category",
-                "active_hazard", "scene_cleared", "hazard_warned", "mode", "session_id",
-            ]:
-                st.session_state.pop(key, None)
-            st.rerun()
 
 # --- 7. MAIN UI ---
 if not st.session_state.started:

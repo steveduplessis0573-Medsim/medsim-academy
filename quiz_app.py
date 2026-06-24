@@ -170,6 +170,8 @@ all other IV/IO medications are ALS-only — never ask a BLS provider about them
 def generate_questions(mode: str, topic: str, n: int) -> list[dict]:
     query = topic if topic != "Random" else "EMS patient care protocol medication procedure assessment"
     docs  = vector_db.similarity_search(query, k=min(n + 2, 8))
+    if mode == "BLS":
+        docs = [d for d in docs if "[ALS SECTION:]" not in d.page_content]
     context = "\n\n---\n\n".join(d.page_content for d in docs)
     scope_block = BLS_FORMULARY if mode == "BLS" else "For ALS mode: the full medication list in the SCOPE AUTHORITY is available."
     other_level = "ALS" if mode == "BLS" else "BLS"

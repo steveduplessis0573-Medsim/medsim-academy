@@ -262,8 +262,9 @@ def clean_for_display(text, show_vitals_inline: bool = True):
             vitals_line = "  ".join(f"`{k}: {v}`" for k, v in footer_real_vitals)
             text = text.rstrip() + "\n\n" + vitals_line
 
-    # Strip [ECG] slug tag — the chat loop handles image display separately
-    text = re.sub(r"\[ECG\]\s*\S+", "", text, flags=re.IGNORECASE)
+    # Strip media tags — the chat loop handles image display separately
+    text = re.sub(r"\[ECG\]\s*\S+",   "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\[CAPNO\]\s*\S+", "", text, flags=re.IGNORECASE)
 
     # Strip [NARRATIVE] block — the chat loop renders it in an expander separately
     text = re.sub(r"\[NARRATIVE\].*", "", text, flags=re.IGNORECASE | re.DOTALL)
@@ -299,6 +300,28 @@ def _ecg_image_path(slug):
 
 def _extract_ecg_slug(text):
     m = re.search(r"\[ECG\]\s*([a-z0-9_]+)", text, re.IGNORECASE)
+    return m.group(1).lower().strip() if m else None
+
+# ── Capnography image helpers ──────────────────────────────────────────────────
+CAPNO_SLUGS = {
+    "normal":           "Normal Capnography",
+    "bronchospasm":     "Bronchospasm / COPD (Shark-Fin)",
+    "hyperventilation": "Hyperventilation",
+    "hypoventilation":  "Hypoventilation",
+    "esophageal":       "Esophageal Intubation",
+    "apnea":            "Apnea",
+    "cardiac_arrest":   "Cardiac Arrest — No Perfusion",
+    "rosc":             "ROSC — EtCO₂ Rising",
+    "rebreathing":      "Rebreathing / Elevated Baseline",
+    "cpr":              "CPR in Progress",
+}
+
+def _capno_image_path(slug):
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, "capno_images", f"{slug}.png")
+
+def _extract_capno_slug(text):
+    m = re.search(r"\[CAPNO\]\s*([a-z0-9_]+)", text, re.IGNORECASE)
     return m.group(1).lower().strip() if m else None
 
 def _get_db_connection():
@@ -814,10 +837,11 @@ else:
             if isinstance(msg, HumanMessage):
                 prev_vitals_requested = bool(_VITALS_REQUEST_KW.search(raw_content))
             if isinstance(msg, (AIMessage, HumanMessage)) and "Dispatch" not in raw_content:
-                clean_text = re.sub(r"--- LOCAL PROTOCOL REFERENCE ---.*--- STUDENT ACTION ---", "", raw_content, flags=re.DOTALL)
-                ecg_slug   = _extract_ecg_slug(clean_text)
+                clean_text  = re.sub(r"--- LOCAL PROTOCOL REFERENCE ---.*--- STUDENT ACTION ---", "", raw_content, flags=re.DOTALL)
+                ecg_slug    = _extract_ecg_slug(clean_text)
+                capno_slug  = _extract_capno_slug(clean_text)
                 show_vitals = prev_vitals_requested if isinstance(msg, AIMessage) else True
-                clean_text = clean_for_display(clean_text, show_vitals_inline=show_vitals)
+                clean_text  = clean_for_display(clean_text, show_vitals_inline=show_vitals)
                 role = "assistant" if isinstance(msg, AIMessage) else "user"
                 with st.chat_message(role, avatar="🚑" if role=="assistant" else "🩺"):
                     st.markdown(clean_text)
@@ -835,6 +859,12 @@ else:
                             st.image(img_path, caption=f"12-Lead ECG — {ECG_SLUGS[ecg_slug]}", use_container_width=True)
                         else:
                             st.caption(f"⚠ ECG image not found: {img_path}")
+                    if capno_slug and capno_slug in CAPNO_SLUGS:
+                        img_path = _capno_image_path(capno_slug)
+                        if os.path.exists(img_path):
+                            st.image(img_path, caption=f"Capnography — {CAPNO_SLUGS[capno_slug]}", use_container_width=True)
+                        else:
+                            st.caption(f"⚠ Capno image not found: {img_path}")
 
         # Show any database logging error that survived the rerun
         if st.session_state.get("_db_log_error"):

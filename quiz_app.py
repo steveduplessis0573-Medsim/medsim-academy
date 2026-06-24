@@ -64,6 +64,13 @@ def load_scope() -> str:
 
 SCOPE_REF = load_scope()
 
+# BLS quiz only needs the BLS section — strip ALS medication list so the LLM
+# cannot generate questions from ALS drugs it sees in the prompt.
+def _bls_scope(full: str) -> str:
+    marker = "## ALS-AUTHORIZED MEDICATIONS"
+    idx = full.find(marker)
+    return full[:idx].strip() if idx != -1 else full
+
 # ── Retry wrapper ──────────────────────────────────────────────────────────────
 def _invoke(messages, max_attempts=4):
     delay, last_err = 3, None
@@ -168,22 +175,34 @@ all other IV/IO medications are ALS-only — never ask a BLS provider about them
 
 
 def generate_questions(mode: str, topic: str, n: int) -> list[dict]:
-    query = topic if topic != "Random" else "EMS patient care protocol medication procedure assessment"
-    docs  = vector_db.similarity_search(query, k=min(n + 2, 8))
-    if mode == "BLS":
-        docs = [d for d in docs if "[ALS SECTION:]" not in d.page_content]
-    context = "\n\n---\n\n".join(d.page_content for d in docs)
-    scope_block = BLS_FORMULARY if mode == "BLS" else "For ALS mode: the full medication list in the SCOPE AUTHORITY is available."
     other_level = "ALS" if mode == "BLS" else "BLS"
+    scope_ref_for_prompt = _bls_scope(SCOPE_REF) if mode == "BLS" else SCOPE_REF
+
+    # For BLS Medications & Doses: skip RAG entirely — formulary is the sole source
+    bls_meds_only = (mode == "BLS" and topic == "Medications & Doses")
+    if bls_meds_only:
+        context = ""
+    else:
+        query = topic if topic != "Random" else "EMS patient care protocol medication procedure assessment"
+        docs  = vector_db.similarity_search(query, k=min(n + 2, 8))
+        if mode == "BLS":
+            docs = [d for d in docs if "[ALS SECTION:]" not in d.page_content]
+        context = "\n\n---\n\n".join(d.page_content for d in docs)
+
+    scope_block = BLS_FORMULARY if mode == "BLS" else "For ALS mode: the full medication list in the SCOPE AUTHORITY is available."
+    context_section = (
+        f"SOURCE — USE ONLY THIS LIST TO GENERATE QUESTIONS:\n{BLS_FORMULARY}"
+        if bls_meds_only else
+        f"PROTOCOL TEXT (retrieved context for this topic):\n{context}"
+    )
 
     prompt = f"""You are an EMS training quiz generator for Prince William County (PWC) protocols.
 You are creating questions for a {mode} provider.
 
 SCOPE AUTHORITY — THIS IS THE AUTHORITATIVE SOURCE FOR ALL SCOPE DECISIONS:
-{SCOPE_REF}
+{scope_ref_for_prompt}
 
-PROTOCOL TEXT (retrieved context for this topic):
-{context}
+{context_section}
 
 SCOPE RULES:
 - Only ask about medications, procedures, and decisions that are explicitly authorized for {mode} providers in the SCOPE AUTHORITY above.
@@ -192,7 +211,7 @@ SCOPE RULES:
 
 {scope_block}
 
-Generate exactly {n} quiz questions grounded in the protocol text and scope above.
+Generate exactly {n} quiz questions grounded in the source above.
 Mix multiple-choice and true/false. At least half should be multiple-choice.
 Make questions practical and clinically relevant — test dosing, indications, contraindications, and scope decisions.
 

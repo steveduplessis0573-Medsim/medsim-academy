@@ -598,20 +598,23 @@ if not st.session_state.started:
 
     st.info("⚠️ MedSim Academy uses AI to help you practice clinical decision‑making. The scenarios are fictional, and the system scores you using the protocols installed at the time—these might not match your agency's latest updates, and the AI isn't perfect. When treating real patients, always rely on your medical director and your local protocols.")
 
-    with st.expander("📖 READ FIRST: Standard Operating Procedure", expanded=True):
+    with st.expander("📖 READ FIRST: Standard Operating Procedure", expanded=False):
         st.markdown("""
         ### **1. Starting the Call**
         Select the **Category**, **Acuity**, and **Protocol Level** in the sidebar, then click **🚀 START CALL**. You can also enter your own dispatch in the **Override Scenario** field to practice a specific call.
         ### **2. Initial Response**
         Your first response must be **"Scene safe, BSI"**. This will trigger the scene and environment description. If the scene is not safe, call for the appropriate resources before proceeding.
         ### **3. Interaction**
-        Treat the chat as your voice and hands. You can **Assess** (*"I check skin"*), **Intervene** (*"I start an IV"*), or **Communicate** (*"I talk to family"*).
+        Treat the chat as your voice and hands. You can **Assess** (*"I check skin"*, *"obtain vitals"*, *"obtain 12-lead"*, *"get capno"*), **Intervene** (*"I start an IV"*), or **Communicate** (*"I talk to family"*).
         ### **4. Monitor & Timeline**
         The monitor updates vitals and the timeline logs your actions in real-time.
         ### **5. Ending the Call**
-        The simulation concludes with a **[DEBRIEF]** when care is transferred, the patient expires or a refusal is obtained.
+        The simulation concludes with a **[DEBRIEF]** when care is transferred, the patient expires, a refusal is obtained, or the provider is injured.
         ### **6. The Debrief**
-        A clinical performance review will analyze your actions against local protocols.
+        A clinical performance review will analyze your actions against the standard you selected.
+        ### **7. Special Situations**
+        - **Language barrier:** If the patient speaks only Spanish, type your assessment in Spanish or say *"contact Language Line"* to get an interpreter on the line.
+        - **Patient refusing care:** If the patient refuses transport but you believe they lack decision-making capacity, say *"I'm requesting an ECO"* to contact the magistrate for an Emergency Custody Order.
         """)
 
     if st.button("🚀 START CALL", type="primary", use_container_width=True):

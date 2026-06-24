@@ -1,4 +1,4 @@
-import os, json, re, hashlib
+import os, json, re, hashlib, time
 import streamlit as st
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -51,6 +51,34 @@ def load_resources():
     return db, llm
 
 vector_db, llm_engine = load_resources()
+
+# ── Scope reference ────────────────────────────────────────────────────────────
+@st.cache_data
+def load_scope() -> str:
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scope", "PWC_scope.txt")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception:
+        return ""
+
+SCOPE_REF = load_scope()
+
+# ── Retry wrapper ──────────────────────────────────────────────────────────────
+def _invoke(messages, max_attempts=4):
+    delay, last_err = 3, None
+    for attempt in range(max_attempts):
+        try:
+            return llm_engine.invoke(messages)
+        except Exception as e:
+            err = str(e).lower()
+            if any(x in err for x in ["503","502","529","unavailable","overloaded","429","quota","try again"]) \
+               and attempt < max_attempts - 1:
+                last_err = e
+                time.sleep(delay * (2 ** attempt))
+            else:
+                raise
+    raise last_err or RuntimeError("No attempts made")
 
 TOPICS = ["Random", "Cardiac", "Respiratory / Airway", "Trauma", "Toxicology",
           "Medications & Doses", "Pediatric", "OB / GYN", "Shock / Resuscitation"]
@@ -126,17 +154,25 @@ def generate_questions(mode: str, topic: str, n: int) -> list[dict]:
     docs  = vector_db.similarity_search(query, k=min(n + 2, 8))
     context = "\n\n---\n\n".join(d.page_content for d in docs)
 
-    other = "ALS" if mode == "BLS" else "BLS"
-    prompt = f"""You are an EMS training quiz generator for Prince William County protocols.
-You are creating questions for a {mode} provider. Do NOT ask about {other}-only medications or procedures.
+    prompt = f"""You are an EMS training quiz generator for Prince William County (PWC) protocols.
+You are creating questions for a {mode} provider.
 
-PROTOCOL TEXT:
+SCOPE AUTHORITY — THIS IS THE AUTHORITATIVE SOURCE FOR ALL SCOPE DECISIONS:
+{SCOPE_REF}
+
+PROTOCOL TEXT (retrieved context for this topic):
 {context}
 
-Generate exactly {n} quiz questions grounded only in the protocol text above.
+SCOPE RULES:
+- Only ask about medications, procedures, and decisions that are explicitly authorized for {mode} providers in the SCOPE AUTHORITY above.
+- Do NOT ask {mode} providers about medications or procedures listed only under the {"ALS" if mode == "BLS" else "BLS"} section.
+- If a medication appears in both BLS and ALS sections, the question is valid for {mode}.
+- For BLS questions on "Medications & Doses": only use aspirin, epinephrine auto-injector, albuterol (first 2 doses with ipratropium), ondansetron ODT, naloxone IN, oral glucose, acetaminophen PO, nitroglycerin SL, and CPAP — nothing else.
+- For ALS questions: the full medication list in the SCOPE AUTHORITY is available.
+
+Generate exactly {n} quiz questions grounded in the protocol text and scope above.
 Mix multiple-choice and true/false. At least half should be multiple-choice.
-Make questions practical and clinically relevant — test dosing, indications,
-contraindications, and scope decisions.
+Make questions practical and clinically relevant — test dosing, indications, contraindications, and scope decisions.
 
 Return ONLY a valid JSON array with no surrounding text or markdown fences:
 [
@@ -156,7 +192,7 @@ Return ONLY a valid JSON array with no surrounding text or markdown fences:
   }}
 ]"""
 
-    resp = llm_engine.invoke([HumanMessage(content=prompt)])
+    resp = _invoke([HumanMessage(content=prompt)])
     raw  = resp.content.strip()
     raw  = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE).strip()
     questions = json.loads(raw)

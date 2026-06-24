@@ -13,15 +13,11 @@ ASPIRIN 324 mg PO: All providers. Cardiac chest pain/suspected ACS. NO hypotensi
 
 EPINEPHRINE IM (1:1000): All providers for anaphylaxis. ≥65 lbs → 0.3 ml IM; <65 lbs → 0.15 ml IM. Repeat once in 5 min if indicated.
 
-IPRATROPIUM BROMIDE: All providers. Always combined with albuterol (2.5 mg + 0.5 mg neb) for first 2 doses. BLS authorized.
-
-ALBUTEROL (first 2 doses with ipratropium): All providers. ALS may continue beyond 2 doses (up to 15 mg cumulative).
+ALBUTEROL 2.5 mg + IPRATROPIUM BROMIDE 0.5 mg via nebulizer: All providers. Always given as a combined nebulizer treatment. BLS max 2 doses. ALS may continue albuterol beyond 2 doses (up to 15 mg cumulative).
 
 ONDANSETRON 4 mg ODT: BLS authorized. ALS may also use IV/IM/IO routes and one repeat dose.
 
 NALOXONE 2 mg IN: BLS authorized. ALS expansion: 0.4 mg IV/IO titrated to respiratory rate (max 4 mg cumulative).
-
-ACETAMINOPHEN 975 mg PO: All providers. Pain/fever. Do NOT flag BLS administration PO as a scope violation.
 
 HEMOSTATIC GAUZE / Wound Packing: BLS authorized for trauma care.
 
@@ -36,9 +32,11 @@ SUPRAGLOTTIC AIRWAY (SGA/I-gel): BLS and ALS authorized.
 
 ## ALS-AUTHORIZED MEDICATIONS — COMPLETE LIST
 
+ACETAMINOPHEN (IV/IO): ALS only. Pain/fever. BLS does NOT administer acetaminophen in any form.
+
 ADENOSINE: ALS only. SVT (regular narrow complex, mild symptoms); stable wide complex tach if SVT strongly suspected. 6 mg rapid IVP + 20 ml NS flush; repeat 12 mg if no response. Contraindicated: 2nd/3rd degree AV block, sick sinus syndrome.
 
-ALBUTEROL (ALS-expanded): ALS may continue beyond first 2 doses up to 15 mg cumulative. ALS only for hyperkalemia (5 mg neb) and crush/entrapment (OLMC required). Do not give simultaneously with epinephrine.
+ALBUTEROL (ALS-expanded): ALS may continue albuterol beyond the first 2 combined doses up to 15 mg cumulative (without ipratropium for additional doses). ALS only for hyperkalemia (5 mg neb) and crush/entrapment (OLMC required). Do not give simultaneously with epinephrine.
 
 AMIODARONE: ALS only. V-Fib/pulseless V-Tach arrest: 300 mg IV/IO bolus, repeat 150 mg q3-5 min (max 450 mg cumulative). Stable wide complex tach or post-ROSC: 150 mg/100 ml NS over 10 min. Torsades: 150 mg/100 ml NS over 10 min. Contraindicated: cardiogenic shock, WPW history, marked sinus bradycardia, 2nd/3rd degree AV block.
 

@@ -149,10 +149,30 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Question generation ────────────────────────────────────────────────────────
+BLS_FORMULARY = """BLS FORMULARY — COMPLETE AND EXHAUSTIVE (no other medications exist for BLS, regardless of topic):
+• Aspirin 324 mg PO (chewed) — suspected ACS / cardiac chest pain
+• Epinephrine auto-injector: 0.3 ml IM if ≥65 lbs, 0.15 ml IM if <65 lbs — anaphylaxis; may repeat once in 5 min
+• Albuterol 2.5 mg + Ipratropium Bromide 0.5 mg via nebulizer — respiratory distress (BLS max 2 doses; ALS may continue beyond)
+• Ondansetron 4 mg ODT — nausea/vomiting
+• Naloxone 2 mg IN — opioid overdose
+• Oral glucose gel PO — symptomatic hypoglycemia (BGL <60)
+• Nitroglycerin 0.4 mg SL (max 1.2 mg cumulative incl. patient's own doses) — ACS/pulmonary edema; hold if SBP <100 or PDE5 inhibitor within 48 hr
+• CPAP 5 cm H2O — respiratory distress with adequate tidal volume
+• Hemostatic gauze / wound packing — hemorrhage control
+• DuoDote auto-injector (atropine + pralidoxime) — nerve agent/organophosphate with ≥2 mild or any severe symptoms
+
+Do NOT generate any question that involves a medication not listed above.
+Diphenhydramine, fentanyl, morphine, midazolam, amiodarone, adenosine, dextrose IV, ketamine,
+ketorolac, glucagon, methylprednisolone, magnesium sulfate, metoprolol, epinephrine IV/IO, and
+all other IV/IO medications are ALS-only — never ask a BLS provider about them."""
+
+
 def generate_questions(mode: str, topic: str, n: int) -> list[dict]:
     query = topic if topic != "Random" else "EMS patient care protocol medication procedure assessment"
     docs  = vector_db.similarity_search(query, k=min(n + 2, 8))
     context = "\n\n---\n\n".join(d.page_content for d in docs)
+    scope_block = BLS_FORMULARY if mode == "BLS" else "For ALS mode: the full medication list in the SCOPE AUTHORITY is available."
+    other_level = "ALS" if mode == "BLS" else "BLS"
 
     prompt = f"""You are an EMS training quiz generator for Prince William County (PWC) protocols.
 You are creating questions for a {mode} provider.
@@ -165,10 +185,10 @@ PROTOCOL TEXT (retrieved context for this topic):
 
 SCOPE RULES:
 - Only ask about medications, procedures, and decisions that are explicitly authorized for {mode} providers in the SCOPE AUTHORITY above.
-- Do NOT ask {mode} providers about medications or procedures listed only under the {"ALS" if mode == "BLS" else "BLS"} section.
+- Do NOT ask {mode} providers about medications or procedures listed only under the {other_level} section.
 - If a medication appears in both BLS and ALS sections, the question is valid for {mode}.
-- For BLS questions on "Medications & Doses": only use aspirin, epinephrine auto-injector, albuterol (first 2 doses with ipratropium), ondansetron ODT, naloxone IN, oral glucose, acetaminophen PO, nitroglycerin SL, and CPAP — nothing else.
-- For ALS questions: the full medication list in the SCOPE AUTHORITY is available.
+
+{scope_block}
 
 Generate exactly {n} quiz questions grounded in the protocol text and scope above.
 Mix multiple-choice and true/false. At least half should be multiple-choice.

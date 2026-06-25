@@ -792,10 +792,12 @@ if not st.session_state.started:
             st.session_state.active_hazard = {"type": htype, "fix": fix_map[htype]}
             st.session_state.scene_cleared = False
             st.session_state.hazard_warned = False
+            st.session_state.hazard_phase = 1
         elif random.random() < 0.10:
             st.session_state.active_hazard = random.choice(HAZARD_POOL)
             st.session_state.scene_cleared = False
             st.session_state.hazard_warned = False
+            st.session_state.hazard_phase = 1
         else:
             st.session_state.active_hazard = None
             st.session_state.scene_cleared = True
@@ -848,7 +850,7 @@ if not st.session_state.started:
             except Exception:
                 st.error("Could not connect to simulation engine. Please try again.")
                 for key in ["started", "mode", "start_time", "sim_finished", "timeline",
-                            "active_hazard", "scene_cleared", "hazard_warned",
+                            "active_hazard", "scene_cleared", "hazard_warned", "hazard_phase",
                             "current_complaint", "current_acuity", "current_category"]:
                     st.session_state.pop(key, None)
                 st.rerun()
@@ -986,16 +988,61 @@ else:
                             st.session_state.timeline.append(f"Scene safely mitigated via: '{u_input}'")
                             st.rerun()
                         else:
-                            feedback = (
-                                f"[SCENE] \U0001f6a8 CRITICAL SAFETY ERROR! You were explicitly warned about an "
-                                f"active threat requiring {hazard['fix'].upper()} intervention.\n\n"
-                                f"You cannot proceed with clinical patient care until you STAGE your ambulance "
-                                f"or request the appropriate resources!"
-                            )
-                            st.session_state.messages.append(HumanMessage(content=u_input))
-                            st.session_state.messages.append(AIMessage(content=feedback))
-                            st.session_state.timeline.append("CRITICAL VIOLATION: Ignored scene safety warning.")
-                            st.rerun()
+                            if st.session_state.get("hazard_phase", 1) == 1:
+                                # PHASE 1 — in-world block, one chance remaining
+                                phase1_directive = (
+                                    f"--- SCENE SAFETY PHASE 1 ---\n"
+                                    f"The student attempted to approach the patient without addressing the active {hazard['type']} hazard. "
+                                    f"Output ONLY vivid in-world narrative of the hazard physically blocking their approach. "
+                                    f"NO system error messages, NO meta-commentary, NO labels like 'CRITICAL SAFETY ERROR'. "
+                                    f"Use the PHASE 1 blocking template from your HAZARD CONSEQUENCE PROTOCOL. "
+                                    f"End with the hazard still active and the student unable to reach the patient. Do NOT debrief."
+                                )
+                                temp_history = st.session_state.messages + [
+                                    HumanMessage(content=u_input),
+                                    SystemMessage(content=phase1_directive),
+                                ]
+                                try:
+                                    resp = _invoke_with_retry(temp_history)
+                                    feedback = resp.content
+                                except Exception:
+                                    feedback = f"[SCENE] The {hazard['type']} hazard surges forward as you step toward the patient, cutting off your path. You are forced back. How do you wish to proceed?"
+                                st.session_state.hazard_phase = 2
+                                st.session_state.messages.append(HumanMessage(content=u_input))
+                                st.session_state.messages.append(AIMessage(content=feedback))
+                                st.session_state.timeline.append("Scene safety warning: patient contact attempted with active hazard.")
+                                st.rerun()
+                            else:
+                                # PHASE 2 — consequence + DEBRIEF
+                                phase2_directive = (
+                                    f"--- SCENE SAFETY PHASE 2 — MANDATORY CONSEQUENCE ---\n"
+                                    f"The student has now attempted to reach the patient a second time without resolving the {hazard['type']} hazard. "
+                                    f"Execute the PHASE 2 consequence immediately using the appropriate CONSEQUENCE TEMPLATE from your HAZARD CONSEQUENCE PROTOCOL. "
+                                    f"Narrate the consequence in 2-3 vivid sentences, then output the full [DEBRIEF] block with SCORE: 0/100 and RESULT: FAIL. "
+                                    f"Do NOT allow patient contact. Do NOT continue the simulation."
+                                )
+                                temp_history = st.session_state.messages + [
+                                    HumanMessage(content=u_input),
+                                    SystemMessage(content=phase2_directive),
+                                ]
+                                try:
+                                    resp = _invoke_with_retry(temp_history)
+                                    feedback = resp.content
+                                except Exception:
+                                    feedback = (
+                                        f"[SCENE] The {hazard['type']} hazard reaches you before you can get to the patient. You are incapacitated and cannot continue care.\n"
+                                        f"[DEBRIEF]\n1. CLINICAL OUTCOME: Provider incapacitated due to scene safety failure.\n"
+                                        f"2. PROTOCOL ADHERENCE: CRITICAL VIOLATION — Scene safety was not established before patient contact.\n"
+                                        f"3. SCORE: 0/100\n4. RESULT: FAIL\n[SCORE] 0/100\n[RESULT] FAIL"
+                                    )
+                                st.session_state.messages.append(HumanMessage(content=u_input))
+                                st.session_state.messages.append(AIMessage(content=feedback))
+                                st.session_state.timeline.append("CRITICAL VIOLATION: Scene safety failure — provider incapacitated.")
+                                process_medsim_turn(feedback)
+                                if "[DEBRIEF]" in feedback:
+                                    st.session_state.sim_finished = True
+                                    _clear_live_session(st.session_state.get("session_id", ""))
+                                st.rerun()
                 # --- END OF SCENE SAFETY FIREWALL ---
                 else:
                     with st.spinner("🔍 Consulting Protocols..."):

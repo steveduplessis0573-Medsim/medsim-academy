@@ -240,7 +240,7 @@ st.markdown("""
     <span class="nav-title">MedSim Academy</span>
     <div class="nav-right">
         <span class="nav-station">Station 516 &middot; B shift</span>
-        <button id="ms-dotbtn" onclick="toggleMsLb()" aria-label="Leaderboard">
+        <button id="ms-dotbtn" aria-label="Leaderboard">
             <span class="ms-dot"></span><span class="ms-dot"></span><span class="ms-dot"></span>
         </button>
     </div>
@@ -266,16 +266,23 @@ st.markdown("""
 </div>
 
 <script>
-function toggleMsLb() {
-    var p = document.getElementById('ms-lb-panel');
-    p.style.display = (p.style.display === 'block') ? 'none' : 'block';
-}
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('#ms-dotbtn') && !e.target.closest('#ms-lb-panel')) {
-        var p = document.getElementById('ms-lb-panel');
-        if (p) p.style.display = 'none';
+(function() {
+    function attach() {
+        var btn = document.getElementById('ms-dotbtn');
+        var panel = document.getElementById('ms-lb-panel');
+        if (!btn || !panel) { setTimeout(attach, 150); return; }
+        if (btn._msAttached) return;
+        btn._msAttached = true;
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        });
+        document.addEventListener('click', function(e) {
+            if (!panel.contains(e.target)) panel.style.display = 'none';
+        });
     }
-});
+    attach();
+})();
 </script>
 """, unsafe_allow_html=True)
 

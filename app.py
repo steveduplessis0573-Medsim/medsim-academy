@@ -591,6 +591,26 @@ with st.sidebar:
     custom_scenario = st.text_input("Override Scenario:", placeholder="e.g., Snake bite to the hand", disabled=st.session_state.started)
     st.caption("Leave blank to use the random pool.")
 
+    # ── DEMO CONTROLS (password-gated) ───────────────────────────────────────
+    st.divider()
+    if "demo_unlocked" not in st.session_state:
+        st.session_state.demo_unlocked = False
+    if not st.session_state.demo_unlocked:
+        demo_code = st.text_input("", placeholder="Demo access code", type="password",
+                                   label_visibility="collapsed", key="demo_code_input")
+        if demo_code and demo_code == _secret("APP_PASSWORD", ""):
+            st.session_state.demo_unlocked = True
+            st.rerun()
+    else:
+        st.markdown("**🎬 Demo Controls**")
+        demo_spanish  = st.toggle("Force Spanish barrier", value=False,
+                                   disabled=st.session_state.started, key="demo_spanish")
+        demo_hazard   = st.selectbox("Force hazard", ["None", "Electrical", "Animal", "Chemical", "Violence"],
+                                      disabled=st.session_state.started, key="demo_hazard")
+        if st.button("🔒 Lock demo", use_container_width=False):
+            st.session_state.demo_unlocked = False
+            st.rerun()
+
 
 # --- 7. MAIN UI ---
 if not st.session_state.started:
@@ -764,7 +784,15 @@ if not st.session_state.started:
         st.session_state.current_acuity = acuity
         st.session_state.current_category = cat
 
-        if random.random() < 0.10:
+        _demo_hazard = st.session_state.get("demo_hazard", "None") if st.session_state.get("demo_unlocked") else "None"
+        if _demo_hazard and _demo_hazard != "None":
+            hazard_map = {"Electrical": "electrical", "Animal": "animal", "Chemical": "Chemical", "Violence": "violence"}
+            fix_map    = {"electrical": "power company", "animal": "animal control", "Chemical": "hazmat", "violence": "police"}
+            htype = hazard_map[_demo_hazard]
+            st.session_state.active_hazard = {"type": htype, "fix": fix_map[htype]}
+            st.session_state.scene_cleared = False
+            st.session_state.hazard_warned = False
+        elif random.random() < 0.10:
             st.session_state.active_hazard = random.choice(HAZARD_POOL)
             st.session_state.scene_cleared = False
             st.session_state.hazard_warned = False
@@ -788,6 +816,13 @@ if not st.session_state.started:
         sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {cat}\nEVALUATION STANDARD: {active_standard}\n{_secret('SYSTEM_PROMPT_CONTENT', '').replace('{mode}', mode)}"
         if scope_ref:
             sys_p += f"\n\n[{scope_label} — AUTHORITATIVE FOR ALL SCOPE DETERMINATIONS]\n{scope_ref}"
+        if st.session_state.get("demo_unlocked") and st.session_state.get("demo_spanish"):
+            sys_p += (
+                "\n\n[DEMO OVERRIDE — LANGUAGE BARRIER ACTIVE]\n"
+                "THIS CALL MUST include a patient who speaks only Spanish. "
+                "Apply the LANGUAGE BARRIER PROTOCOL from the very first scene description. "
+                "Do NOT generate an English-speaking patient regardless of any other instructions."
+            )
         if custom_scenario.strip():
             sys_p += (
                 "\n\n[CUSTOM SCENARIO OVERRIDE — PARAMETER LOCK ACTIVE]\n"

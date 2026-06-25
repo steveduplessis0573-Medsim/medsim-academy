@@ -177,6 +177,8 @@ st.markdown("""
         header[data-testid="stHeader"] { display: none !important; }
         .main .block-container { padding-top: 3.5rem !important; }
 
+        #ms-chk { display: none; }
+
         #ms-navbar {
             position: fixed;
             top: 0; left: 0; right: 0;
@@ -192,7 +194,7 @@ st.markdown("""
         #ms-navbar .nav-title { color: #fff; font-size: 15px; font-weight: 600; }
         #ms-navbar .nav-right { display: flex; align-items: center; gap: 12px; }
         #ms-navbar .nav-station { color: #A8CFDA; font-size: 12px; }
-        #ms-dotbtn {
+        label[for="ms-chk"] {
             background: rgba(255,255,255,0.15);
             border: none;
             border-radius: 6px;
@@ -205,7 +207,7 @@ st.markdown("""
             gap: 3px;
             padding: 0;
         }
-        #ms-dotbtn:hover { background: rgba(255,255,255,0.25); }
+        label[for="ms-chk"]:hover { background: rgba(255,255,255,0.25); }
         .ms-dot { width: 4px; height: 4px; border-radius: 50%; background: #fff; display: inline-block; }
         #ms-lb-panel {
             display: none;
@@ -220,6 +222,7 @@ st.markdown("""
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             font-family: sans-serif;
         }
+        #ms-chk:checked ~ #ms-lb-panel { display: block; }
         #ms-lb-panel .lb-head { background: #1A2E5A; padding: 14px 16px; }
         #ms-lb-panel .lb-rank-big { font-size: 30px; font-weight: 700; color: #fff; line-height: 1; }
         #ms-lb-panel .lb-rank-sub { font-size: 12px; color: #A8CFDA; margin-top: 3px; }
@@ -232,17 +235,20 @@ st.markdown("""
         .lb-row .r-medal { width: 22px; text-align: center; font-size: 14px; }
         .lb-you { font-size: 10px; background: #1D9E75; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
         .lb-sep { padding: 3px 16px; text-align: center; font-size: 11px; color: #aaa; }
+        .lb-action { display: flex; align-items: center; gap: 8px; padding: 10px 16px; font-size: 13px; color: #444; text-decoration: none; border-top: 0.5px solid rgba(0,0,0,0.08); cursor: pointer; }
+        .lb-action:hover { background: #f5f5f5; }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
+<input type="checkbox" id="ms-chk">
 <div id="ms-navbar">
     <span class="nav-title">MedSim Academy</span>
     <div class="nav-right">
         <span class="nav-station">Station 516 &middot; B shift</span>
-        <button id="ms-dotbtn" aria-label="Leaderboard">
+        <label for="ms-chk" aria-label="Leaderboard">
             <span class="ms-dot"></span><span class="ms-dot"></span><span class="ms-dot"></span>
-        </button>
+        </label>
     </div>
 </div>
 
@@ -263,27 +269,8 @@ st.markdown("""
     <div class="lb-row"><div class="r-pos">13</div><div class="r-name">St. 521 A shift</div><div class="r-count">36 calls</div></div>
     <div class="lb-row lb-me"><div class="r-pos r-me">14</div><div class="r-name">St. 516 B shift<span class="lb-you">you</span></div><div class="r-count">34 calls</div></div>
     <div class="lb-row"><div class="r-pos">15</div><div class="r-name">St. 519 C shift</div><div class="r-count">31 calls</div></div>
+    <a class="lb-action" href="javascript:window.print()">&#128438; &nbsp;Print this page</a>
 </div>
-
-<script>
-(function() {
-    function attach() {
-        var btn = document.getElementById('ms-dotbtn');
-        var panel = document.getElementById('ms-lb-panel');
-        if (!btn || !panel) { setTimeout(attach, 150); return; }
-        if (btn._msAttached) return;
-        btn._msAttached = true;
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-        });
-        document.addEventListener('click', function(e) {
-            if (!panel.contains(e.target)) panel.style.display = 'none';
-        });
-    }
-    attach();
-})();
-</script>
 """, unsafe_allow_html=True)
 
 # --- 4. ENGINE FUNCTIONS ---

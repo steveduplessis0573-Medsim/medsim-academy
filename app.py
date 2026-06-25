@@ -235,8 +235,6 @@ st.markdown("""
         .lb-row .r-medal { width: 22px; text-align: center; font-size: 14px; }
         .lb-you { font-size: 10px; background: #1D9E75; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
         .lb-sep { padding: 3px 16px; text-align: center; font-size: 11px; color: #aaa; }
-        .lb-action { display: flex; align-items: center; gap: 8px; padding: 10px 16px; font-size: 13px; color: #444; text-decoration: none; border-top: 0.5px solid rgba(0,0,0,0.08); cursor: pointer; }
-        .lb-action:hover { background: #f5f5f5; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -269,7 +267,6 @@ st.markdown("""
     <div class="lb-row"><div class="r-pos">13</div><div class="r-name">St. 521 A shift</div><div class="r-count">36 calls</div></div>
     <div class="lb-row lb-me"><div class="r-pos r-me">14</div><div class="r-name">St. 516 B shift<span class="lb-you">you</span></div><div class="r-count">34 calls</div></div>
     <div class="lb-row"><div class="r-pos">15</div><div class="r-name">St. 519 C shift</div><div class="r-count">31 calls</div></div>
-    <a class="lb-action" href="javascript:window.print()">&#128438; &nbsp;Print this page</a>
 </div>
 """, unsafe_allow_html=True)
 

@@ -958,6 +958,7 @@ else:
                             f"presentation. An active environmental threat is present. Use your TOML rules to "
                             f"organically synthesize a hazard based on this raw parameter token: {hazard['type']}. "
                             f"It MUST logically harmonize with the dispatch complaint in the history above. "
+                            f"CRITICAL: The patient's age, sex, and chief complaint MUST exactly match the dispatch — do NOT change them. "
                             f"Do not print the token name. Conclude by asking how they wish to proceed."
                         )
                         scene_history = st.session_state.messages + [HumanMessage(content=scene_directive)]

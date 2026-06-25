@@ -832,9 +832,13 @@ if not st.session_state.started:
                 "Only the street address, apartment details, and incidental scene environment details may vary to make the dispatch realistic. "
                 "Example: if dispatched as '75 YOM chest pain', the patient must be a 75-year-old male with chest pain."
             )
+        _force_spanish = st.session_state.get("demo_unlocked") and st.session_state.get("demo_spanish")
+        dispatch_msg = f"Dispatch {dispatch_instruction}."
+        if _force_spanish:
+            dispatch_msg += " LANGUAGE BARRIER ACTIVE: the patient speaks only Spanish. Begin the scene with this barrier in effect."
         st.session_state.messages = [
-            SystemMessage(content=sys_p), 
-            HumanMessage(content=f"Dispatch {dispatch_instruction}.")
+            SystemMessage(content=sys_p),
+            HumanMessage(content=dispatch_msg),
         ]
         
         with st.spinner("Dispatching..."):

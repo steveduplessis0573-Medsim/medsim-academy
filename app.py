@@ -197,6 +197,14 @@ st.markdown("""
             }
             /* Shift navbar title right so it clears the hamburger button */
             #ms-navbar { padding-left: 56px !important; }
+            /* Sidebar toggle: white icon is invisible on light backgrounds —
+               give it a dark pill so it's always visible in any color mode */
+            [data-testid="collapsedControl"] button {
+                color: #1A2E5A !important;
+                background: rgba(255,255,255,0.90) !important;
+                border-radius: 6px !important;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.18) !important;
+            }
         }
 
         #ms-chk { display: none; }

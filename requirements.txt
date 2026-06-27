@@ -1,4 +1,6 @@
 streamlit
+matplotlib
+numpy
 langchain-google-genai
 langchain-huggingface
 langchain-community

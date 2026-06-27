@@ -7,7 +7,12 @@ import time
 import sqlite3
 import json
 import uuid
+import io
 import httpx
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 from datetime import datetime
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -174,8 +179,25 @@ st.markdown("""
         }
 
         /* ── Leaderboard navbar ──────────────────────────────────────────── */
-        header[data-testid="stHeader"] { display: none !important; }
-        .main .block-container { padding-top: 3.5rem !important; }
+
+        /* Desktop: hide Streamlit header — sidebar is always pinned, no hamburger needed */
+        @media (min-width: 769px) {
+            header[data-testid="stHeader"] { display: none !important; }
+            .main .block-container { padding-top: 3.5rem !important; }
+        }
+
+        /* Mobile: keep header visible so the hamburger (sidebar toggle) still works.
+           Make it transparent so our custom navbar shows through underneath. */
+        @media (max-width: 768px) {
+            header[data-testid="stHeader"] {
+                background: transparent !important;
+                box-shadow: none !important;
+                border-bottom: none !important;
+                z-index: 10000 !important;
+            }
+            /* Shift navbar title right so it clears the hamburger button */
+            #ms-navbar { padding-left: 56px !important; }
+        }
 
         #ms-chk { display: none; }
 
@@ -359,7 +381,7 @@ def clean_for_display(text, show_vitals_inline: bool = True):
 
     # Strip media tags — the chat loop handles image display separately
     text = re.sub(r"\[ECG\]\s*\S+",   "", text, flags=re.IGNORECASE)
-    text = re.sub(r"\[CAPNO\]\s*\S+", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\[CAPNO\]\s*\S+(?:\s+\d+)?", "", text, flags=re.IGNORECASE)
 
     # Strip [NARRATIVE] block — the chat loop renders it in an expander separately
     text = re.sub(r"\[NARRATIVE\].*", "", text, flags=re.IGNORECASE | re.DOTALL)
@@ -397,7 +419,7 @@ def _extract_ecg_slug(text):
     m = re.search(r"\[ECG\]\s*([a-z0-9_]+)", text, re.IGNORECASE)
     return m.group(1).lower().strip() if m else None
 
-# ── Capnography image helpers ──────────────────────────────────────────────────
+# ── Capnography helpers ────────────────────────────────────────────────────────
 CAPNO_SLUGS = {
     "normal":           "Normal Capnography",
     "bronchospasm":     "Bronchospasm / COPD (Shark-Fin)",
@@ -406,18 +428,117 @@ CAPNO_SLUGS = {
     "esophageal":       "Esophageal Intubation",
     "apnea":            "Apnea",
     "cardiac_arrest":   "Cardiac Arrest — No Perfusion",
+    "rosc":             "ROSC — Spontaneous Circulation Restored",
+    "rebreathing":      "CO₂ Rebreathing",
     "rosc":             "ROSC — EtCO₂ Rising",
     "rebreathing":      "Rebreathing / Elevated Baseline",
     "cpr":              "CPR in Progress",
 }
 
-def _capno_image_path(slug):
-    base = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base, "capno_images", f"{slug}.png")
+def _extract_capno_data(text):
+    """Return (slug, etco2_int_or_None) from a [CAPNO] slug optional_etco2 tag."""
+    m = re.search(r"\[CAPNO\]\s*([a-z0-9_]+)(?:\s+(\d+))?", text, re.IGNORECASE)
+    if not m:
+        return None, None
+    return m.group(1).lower().strip(), (int(m.group(2)) if m.group(2) else None)
 
-def _extract_capno_slug(text):
-    m = re.search(r"\[CAPNO\]\s*([a-z0-9_]+)", text, re.IGNORECASE)
-    return m.group(1).lower().strip() if m else None
+
+def generate_capno_plot(slug, etco2=None, rr=None):
+    """Generate a dynamic capnography waveform and return it as a PNG BytesIO buffer."""
+    _DEFS = {
+        "normal":           {"etco2": 38, "rr": 14, "shape": "standard"},
+        "hypoventilation":  {"etco2": 58, "rr": 8,  "shape": "standard"},
+        "hyperventilation": {"etco2": 28, "rr": 28, "shape": "standard"},
+        "bronchospasm":     {"etco2": 50, "rr": 16, "shape": "sharkfin"},
+        "esophageal":       {"etco2": 30, "rr": 14, "shape": "esophageal"},
+        "apnea":            {"etco2": 0,  "rr": 0,  "shape": "flat"},
+        "cardiac_arrest":   {"etco2": 10, "rr": 4,  "shape": "standard"},
+        "rosc":             {"etco2": 38, "rr": 10, "shape": "standard"},
+        "rebreathing":      {"etco2": 52, "rr": 14, "shape": "rebreathing"},
+        "cpr":              {"etco2": 18, "rr": 100, "shape": "cpr"},
+    }
+    d = _DEFS.get(slug, _DEFS["normal"])
+    if etco2 is None: etco2 = d["etco2"]
+    if rr    is None: rr    = d["rr"]
+    shape = d["shape"]
+
+    duration = 15.0
+    n = 3000  # 200 samples/sec
+    t = np.linspace(0, duration, n)
+    co2 = np.zeros(n)
+
+    if shape != "flat" and rr > 0:
+        period = 60.0 / max(rr, 1)
+        phase  = (t % period) / period
+        breath = np.floor(t / period).astype(int)
+
+        if shape == "cpr":
+            co2 = np.where(phase < 0.35,
+                           etco2 * np.sin(np.pi * phase / 0.35),
+                  np.where(phase < 0.55, etco2 * 0.35, 0.0))
+
+        elif shape == "sharkfin":
+            co2 = np.where(phase < 0.18, 0.0,
+                  np.where(phase < 0.68, etco2 * (phase - 0.18) / 0.50,
+                  np.where(phase < 0.80, etco2 * (1.0 - (phase - 0.68) / 0.12),
+                  0.0)))
+
+        elif shape == "esophageal":
+            amp = np.maximum(0.0, etco2 * (1.0 - breath * 0.28))
+            co2 = np.where(phase < 0.18, 0.0,
+                  np.where(phase < 0.30, amp * (phase - 0.18) / 0.12,
+                  np.where(phase < 0.68, amp,
+                  np.where(phase < 0.80, amp * (1.0 - (phase - 0.68) / 0.12),
+                  0.0))))
+
+        elif shape == "rebreathing":
+            baseline = etco2 * 0.20
+            co2 = np.where(phase < 0.18, baseline,
+                  np.where(phase < 0.30,
+                           baseline + (etco2 - baseline) * (phase - 0.18) / 0.12,
+                  np.where(phase < 0.68, etco2,
+                  np.where(phase < 0.80,
+                           baseline + (etco2 - baseline) * (1.0 - (phase - 0.68) / 0.12),
+                  baseline))))
+
+        else:  # standard — normal, hypo, hyper, cardiac_arrest, rosc
+            slope = 0.03  # characteristic α-angle upslope on alveolar plateau
+            co2 = np.where(phase < 0.18, 0.0,
+                  np.where(phase < 0.30, etco2 * (phase - 0.18) / 0.12,
+                  np.where(phase < 0.68, etco2 * (1.0 + slope * (phase - 0.30) / 0.38),
+                  np.where(phase < 0.80,
+                           etco2 * (1.0 + slope) * (1.0 - (phase - 0.68) / 0.12),
+                  0.0))))
+
+    fig, ax = plt.subplots(figsize=(8, 3.2))
+    fig.patch.set_facecolor("#000000")
+    ax.set_facecolor("#000000")
+    ax.plot(t, co2, color="#00FF00", linewidth=2.2)
+    for sp in ax.spines.values():
+        sp.set_color("#008800")
+        sp.set_linewidth(0.8)
+    ax.tick_params(colors="#00FF00", labelsize=8)
+    ax.set_xlabel("Time (s)", color="#00FF00", fontsize=9)
+    ax.set_ylabel("CO₂ (mmHg)", color="#00FF00", fontsize=9)
+    ax.set_xlim(0, duration)
+    ax.set_ylim(-4, max(float(etco2) * 1.40, 20))
+    ax.grid(True, color="#003300", linewidth=0.5, alpha=0.7)
+
+    etco2_str = str(etco2) if etco2 > 0 else "---"
+    rr_str    = str(rr)    if rr    > 0 else "---"
+    ax.text(0.98, 0.97, f"EtCO₂  {etco2_str} mmHg",
+            transform=ax.transAxes, color="#00FF00", fontsize=13,
+            ha="right", va="top", fontfamily="monospace", fontweight="bold")
+    ax.text(0.98, 0.74, f"RR  {rr_str} /min",
+            transform=ax.transAxes, color="#00FF00", fontsize=13,
+            ha="right", va="top", fontfamily="monospace", fontweight="bold")
+
+    fig.tight_layout(pad=0.5)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=110, facecolor="#000000", bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
 
 def _get_db_connection():
     """
@@ -976,8 +1097,8 @@ else:
                 prev_vitals_requested = bool(_VITALS_REQUEST_KW.search(raw_content))
             if isinstance(msg, (AIMessage, HumanMessage)) and "Dispatch" not in raw_content:
                 clean_text  = re.sub(r"--- LOCAL PROTOCOL REFERENCE ---.*--- STUDENT ACTION ---", "", raw_content, flags=re.DOTALL)
-                ecg_slug    = _extract_ecg_slug(clean_text)
-                capno_slug  = _extract_capno_slug(clean_text)
+                ecg_slug              = _extract_ecg_slug(clean_text)
+                capno_slug, capno_etco2 = _extract_capno_data(clean_text)
                 show_vitals = prev_vitals_requested if isinstance(msg, AIMessage) else True
                 clean_text  = clean_for_display(clean_text, show_vitals_inline=show_vitals)
                 role = "assistant" if isinstance(msg, AIMessage) else "user"
@@ -998,11 +1119,8 @@ else:
                         else:
                             st.caption(f"⚠ ECG image not found: {img_path}")
                     if capno_slug and capno_slug in CAPNO_SLUGS:
-                        img_path = _capno_image_path(capno_slug)
-                        if os.path.exists(img_path):
-                            st.image(img_path, caption=f"Capnography — {CAPNO_SLUGS[capno_slug]}", use_container_width=True)
-                        else:
-                            st.caption(f"⚠ Capno image not found: {img_path}")
+                        buf = generate_capno_plot(capno_slug, etco2=capno_etco2)
+                        st.image(buf, caption=f"Capnography — {CAPNO_SLUGS[capno_slug]}", use_container_width=True)
 
         # Show any database logging error that survived the rerun
         if st.session_state.get("_db_log_error"):

@@ -1245,7 +1245,23 @@ else:
                     with st.spinner("🔍 Consulting Protocols..."):
                         context = get_protocol_context(u_input)
 
+                    _HANDOFF_PHRASES = [
+                        "transferring care", "transfer care", "transfer of care",
+                        "handing off", "hand off", "handoff",
+                        "we're at the hospital", "we are at the hospital", "arrived at the hospital",
+                        "turning patient over", "turning over care", "turning over the patient",
+                        "i'm handing", "i am handing",
+                        "als is on scene", "als on scene", "als has arrived",
+                        "patient refused", "patient is refusing", "obtain a refusal",
+                        "signing the refusal", "sign the refusal", "signed the refusal",
+                        "patient signing", "refusal form",
+                    ]
+                    _u_lower = u_input.lower()
+                    _is_handoff = any(p in _u_lower for p in _HANDOFF_PHRASES)
+
                     firewall = f"--- MANDATORY: STUDENT IS A {st.session_state.mode} PROVIDER ---\n"
+                    if _is_handoff:
+                        firewall += "--- MANDATORY DEBRIEF TRIGGER: The student has completed patient hand-off or transport. You MUST output [DEBRIEF] in this response. Do not ask follow-up questions. ---\n"
                     enriched = f"{firewall}--- LOCAL PROTOCOL REFERENCE ---\n{context}\n\n--- STUDENT ACTION ---\n{u_input}"
                     temp_history = st.session_state.messages + [HumanMessage(content=enriched)]
 

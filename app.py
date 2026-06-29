@@ -878,16 +878,17 @@ if not st.session_state.started:
         if custom_scenario.strip():
             complaint = custom_scenario
             st.session_state.current_complaint = custom_scenario
-            dispatch_instruction = f"a {acuity} {cat} emergency: {complaint}"
+            dispatch_instruction = f"a {acuity} emergency: {complaint}"
+            st.session_state.current_category = "Custom"
         else:
             category_dict = pool.get(cat, pool["Medical"])
             difficulty_list = category_dict.get(acuity, category_dict["Moderate"])
             choice = random.choice(difficulty_list)
             dispatch_instruction = f"a {acuity}-acuity case: {choice}"
             st.session_state.current_complaint = choice
-        
+            st.session_state.current_category = cat
+
         st.session_state.current_acuity = acuity
-        st.session_state.current_category = cat
 
         if random.random() < 0.10:
             st.session_state.active_hazard = random.choice(HAZARD_POOL)
@@ -911,7 +912,8 @@ if not st.session_state.started:
         active_standard = st.session_state.get("standard", "PWC")
         scope_ref = load_scope_reference(active_standard)
         scope_label = "NATIONAL EMS EDUCATION STANDARDS (NREMT)" if active_standard == "NREMT" else "LOCAL PROTOCOL REFERENCE — PWC"
-        sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {cat}\nEVALUATION STANDARD: {active_standard}\n{_secret('SYSTEM_PROMPT_CONTENT', '').replace('{mode}', mode)}"
+        _cat_header = cat if not custom_scenario.strip() else "Custom — infer from dispatch"
+        sys_p = f"!!! {mode} MODE !!!\nACUITY: {acuity}\nCATEGORY: {_cat_header}\nEVALUATION STANDARD: {active_standard}\n{_secret('SYSTEM_PROMPT_CONTENT', '').replace('{mode}', mode)}"
         if scope_ref:
             sys_p += f"\n\n[{scope_label} — AUTHORITATIVE FOR ALL SCOPE DETERMINATIONS]\n{scope_ref}"
         if custom_scenario.strip():
@@ -961,8 +963,15 @@ else:
                 unsafe_allow_html=True,
             )
 
+        # Pre-scan: find the last message index that has a [CAPNO] tag so we
+        # only render the waveform once (for the most recent capno reading).
+        _last_capno_idx = None
+        for _i, _m in enumerate(st.session_state.messages):
+            if isinstance(_m, AIMessage) and _extract_capno_data(_m.content if isinstance(_m.content, str) else "")[0]:
+                _last_capno_idx = _i
+
         prev_vitals_requested = False
-        for msg in st.session_state.messages:
+        for _msg_idx, msg in enumerate(st.session_state.messages):
             raw_content = msg.content if isinstance(msg.content, str) else ""
             if isinstance(msg, HumanMessage):
                 prev_vitals_requested = bool(_VITALS_REQUEST_KW.search(raw_content))
@@ -970,6 +979,9 @@ else:
                 clean_text  = re.sub(r"--- LOCAL PROTOCOL REFERENCE ---.*--- STUDENT ACTION ---", "", raw_content, flags=re.DOTALL)
                 ecg_slug              = _extract_ecg_slug(clean_text)
                 capno_slug, capno_etco2 = _extract_capno_data(clean_text)
+                # Only keep capno for display if this is the last message with a capno tag
+                if _msg_idx != _last_capno_idx:
+                    capno_slug = None
                 show_vitals = prev_vitals_requested if isinstance(msg, AIMessage) else True
                 clean_text  = clean_for_display(clean_text, show_vitals_inline=show_vitals)
                 role = "assistant" if isinstance(msg, AIMessage) else "user"

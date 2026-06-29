@@ -20,7 +20,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 # --- 1. PERFORMANCE CACHING ---
-st.set_page_config(page_title="MedSim Academy", page_icon="🩺", layout="wide")
+st.set_page_config(page_title="MedSim Academy", page_icon="🩺", layout="wide", initial_sidebar_state="expanded")
 
 def _secret(key, default=None):
     """Read from env var first (Railway), fall back to st.secrets (Streamlit Cloud)."""

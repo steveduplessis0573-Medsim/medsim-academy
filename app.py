@@ -279,6 +279,20 @@ st.markdown("""
         .lb-you { font-size: 10px; background: #1D9E75; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
         .lb-sep { padding: 3px 16px; text-align: center; font-size: 11px; color: #aaa; }
     </style>
+    <script>
+    (function() {
+        function expandSidebar() {
+            var btn = document.querySelector('[data-testid="collapsedControl"] button');
+            if (btn) { btn.click(); return true; }
+            return false;
+        }
+        // Streamlit renders async — retry until the element exists
+        var attempts = 0;
+        var iv = setInterval(function() {
+            if (expandSidebar() || ++attempts > 20) clearInterval(iv);
+        }, 200);
+    })();
+    </script>
 """, unsafe_allow_html=True)
 
 st.markdown("""

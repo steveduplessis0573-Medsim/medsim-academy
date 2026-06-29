@@ -178,154 +178,9 @@ st.markdown("""
             }
         }
 
-        /* ── Leaderboard navbar ──────────────────────────────────────────── */
-
-        /* Desktop: hide Streamlit header — sidebar toggle is handled by the drawer tab below */
-        @media (min-width: 769px) {
-            header[data-testid="stHeader"] { display: none !important; }
-            .main .block-container { padding-top: 3.5rem !important; }
-        }
-
-        /* Mobile: keep header transparent so hamburger stays tappable above our navbar */
-        @media (max-width: 768px) {
-            header[data-testid="stHeader"] {
-                background: transparent !important;
-                box-shadow: none !important;
-                border-bottom: none !important;
-                z-index: 10000 !important;
-            }
-            #ms-navbar { padding-left: 56px !important; }
-        }
-
-        /* Sidebar drawer tab — visible navy pull handle on all screen sizes */
-        [data-testid="collapsedControl"] {
-            background-color: #1A2E5A !important;
-            border-radius: 0 8px 8px 0 !important;
-            width: 20px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            z-index: 9998 !important;
-        }
-        [data-testid="collapsedControl"] button {
-            background: transparent !important;
-            border-radius: 0 8px 8px 0 !important;
-            width: 20px !important;
-            padding: 0 !important;
-        }
-        [data-testid="collapsedControl"] svg,
-        [data-testid="collapsedControl"] button {
-            color: #ffffff !important;
-            fill: #ffffff !important;
-            stroke: #ffffff !important;
-        }
-
-        #ms-chk { display: none; }
-
-        #ms-navbar {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 9999;
-            background: #1A2E5A;
-            padding: 0 20px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-family: sans-serif;
-        }
-        #ms-navbar .nav-title { color: #fff; font-size: 15px; font-weight: 600; }
-        #ms-navbar .nav-right { display: flex; align-items: center; gap: 12px; }
-        #ms-navbar .nav-station { color: #A8CFDA; font-size: 12px; }
-        label[for="ms-chk"] {
-            background: rgba(255,255,255,0.15);
-            border: none;
-            border-radius: 6px;
-            width: 32px;
-            height: 28px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 3px;
-            padding: 0;
-        }
-        label[for="ms-chk"]:hover { background: rgba(255,255,255,0.25); }
-        .ms-dot { width: 4px; height: 4px; border-radius: 50%; background: #fff; display: inline-block; }
-        #ms-lb-panel {
-            display: none;
-            position: fixed;
-            top: 48px; right: 20px;
-            width: 280px;
-            background: #fff;
-            border: 1px solid rgba(0,0,0,0.12);
-            border-radius: 12px;
-            overflow: hidden;
-            z-index: 9998;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            font-family: sans-serif;
-        }
-        #ms-chk:checked ~ #ms-lb-panel { display: block; }
-        #ms-lb-panel .lb-head { background: #1A2E5A; padding: 14px 16px; }
-        #ms-lb-panel .lb-rank-big { font-size: 30px; font-weight: 700; color: #fff; line-height: 1; }
-        #ms-lb-panel .lb-rank-sub { font-size: 12px; color: #A8CFDA; margin-top: 3px; }
-        .lb-row { display: flex; align-items: center; padding: 8px 16px; gap: 10px; border-bottom: 0.5px solid rgba(0,0,0,0.08); font-size: 13px; color: #222; }
-        .lb-row.lb-me { background: #E1F5EE; }
-        .lb-row .r-pos { width: 22px; text-align: center; color: #888; font-size: 12px; font-weight: 500; }
-        .lb-row .r-pos.r-me { color: #0F6E56; font-weight: 700; }
-        .lb-row .r-name { flex: 1; }
-        .lb-row .r-count { color: #888; font-size: 12px; }
-        .lb-row .r-medal { width: 22px; text-align: center; font-size: 14px; }
-        .lb-you { font-size: 10px; background: #1D9E75; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
-        .lb-sep { padding: 3px 16px; text-align: center; font-size: 11px; color: #aaa; }
     </style>
-    <script>
-    (function() {
-        function expandSidebar() {
-            var btn = document.querySelector('[data-testid="collapsedControl"] button');
-            if (btn) { btn.click(); return true; }
-            return false;
-        }
-        // Streamlit renders async — retry until the element exists
-        var attempts = 0;
-        var iv = setInterval(function() {
-            if (expandSidebar() || ++attempts > 20) clearInterval(iv);
-        }, 200);
-    })();
-    </script>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<input type="checkbox" id="ms-chk">
-<div id="ms-navbar">
-    <span class="nav-title">MedSim Academy</span>
-    <div class="nav-right">
-        <span class="nav-station">Station 516 &middot; B shift</span>
-        <label for="ms-chk" aria-label="Leaderboard">
-            <span class="ms-dot"></span><span class="ms-dot"></span><span class="ms-dot"></span>
-        </label>
-    </div>
-</div>
-
-<div id="ms-lb-panel">
-    <div class="lb-head">
-        <div style="display:flex;align-items:baseline;gap:10px;">
-            <div class="lb-rank-big">#14</div>
-            <div>
-                <div class="lb-rank-sub">Station 516 B shift</div>
-                <div class="lb-rank-sub" style="margin-top:2px;">34 calls this month</div>
-            </div>
-        </div>
-    </div>
-    <div class="lb-row"><div class="r-medal">&#129351;</div><div class="r-name">St. 508 A shift</div><div class="r-count">89 calls</div></div>
-    <div class="lb-row"><div class="r-medal">&#129352;</div><div class="r-name">St. 503 C shift</div><div class="r-count">81 calls</div></div>
-    <div class="lb-row"><div class="r-medal">&#129353;</div><div class="r-name">St. 512 B shift</div><div class="r-count">76 calls</div></div>
-    <div class="lb-sep">&middot; &middot; &middot;</div>
-    <div class="lb-row"><div class="r-pos">13</div><div class="r-name">St. 521 A shift</div><div class="r-count">36 calls</div></div>
-    <div class="lb-row lb-me"><div class="r-pos r-me">14</div><div class="r-name">St. 516 B shift<span class="lb-you">you</span></div><div class="r-count">34 calls</div></div>
-    <div class="lb-row"><div class="r-pos">15</div><div class="r-name">St. 519 C shift</div><div class="r-count">31 calls</div></div>
-</div>
-""", unsafe_allow_html=True)
 
 # --- 4. ENGINE FUNCTIONS ---
 def get_protocol_context(query):
@@ -842,6 +697,25 @@ with st.sidebar:
     custom_scenario = st.text_input("Override Scenario:", placeholder="e.g., Snake bite to the hand", disabled=st.session_state.started)
     st.caption("Leave blank to use the random pool.")
 
+    st.divider()
+    with st.expander("🏆 Leaderboard", expanded=False):
+        st.markdown("""
+<div style="font-family:sans-serif;">
+  <div style="background:#1A2E5A;border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+    <div style="font-size:28px;font-weight:700;color:#fff;line-height:1;">#14</div>
+    <div style="font-size:11px;color:#A8CFDA;margin-top:3px;">Station 516 B shift &nbsp;·&nbsp; 34 calls this month</div>
+  </div>
+  <div style="font-size:13px;">
+    <div style="display:flex;gap:8px;padding:6px 2px;border-bottom:1px solid #eee;">🥇 <span style="flex:1">St. 508 A shift</span><span style="color:#888">89 calls</span></div>
+    <div style="display:flex;gap:8px;padding:6px 2px;border-bottom:1px solid #eee;">🥈 <span style="flex:1">St. 503 C shift</span><span style="color:#888">81 calls</span></div>
+    <div style="display:flex;gap:8px;padding:6px 2px;border-bottom:1px solid #eee;">🥉 <span style="flex:1">St. 512 B shift</span><span style="color:#888">76 calls</span></div>
+    <div style="color:#bbb;text-align:center;padding:4px 0;">· · ·</div>
+    <div style="display:flex;gap:8px;padding:6px 2px;border-bottom:1px solid #eee;"><span style="color:#888;width:18px">13</span><span style="flex:1">St. 521 A shift</span><span style="color:#888">36 calls</span></div>
+    <div style="display:flex;gap:8px;padding:6px 2px;border-bottom:1px solid #eee;background:#E1F5EE;border-radius:4px;"><span style="color:#0F6E56;font-weight:700;width:18px">14</span><span style="flex:1">St. 516 B shift <span style="font-size:10px;background:#1D9E75;color:#fff;padding:1px 5px;border-radius:3px;">you</span></span><span style="color:#888">34 calls</span></div>
+    <div style="display:flex;gap:8px;padding:6px 2px;"><span style="color:#888;width:18px">15</span><span style="flex:1">St. 519 C shift</span><span style="color:#888">31 calls</span></div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
 
 # --- 7. MAIN UI ---

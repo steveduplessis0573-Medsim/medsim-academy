@@ -180,14 +180,13 @@ st.markdown("""
 
         /* ── Leaderboard navbar ──────────────────────────────────────────── */
 
-        /* Desktop: hide Streamlit header — sidebar is always pinned, no hamburger needed */
+        /* Desktop: hide Streamlit header — sidebar toggle is handled by the drawer tab below */
         @media (min-width: 769px) {
             header[data-testid="stHeader"] { display: none !important; }
             .main .block-container { padding-top: 3.5rem !important; }
         }
 
-        /* Mobile: keep header visible so the hamburger (sidebar toggle) still works.
-           Make it transparent so our custom navbar shows through underneath. */
+        /* Mobile: keep header transparent so hamburger stays tappable above our navbar */
         @media (max-width: 768px) {
             header[data-testid="stHeader"] {
                 background: transparent !important;
@@ -195,20 +194,30 @@ st.markdown("""
                 border-bottom: none !important;
                 z-index: 10000 !important;
             }
-            /* Shift navbar title right so it clears the hamburger button */
             #ms-navbar { padding-left: 56px !important; }
-            /* Sidebar toggle: force white icon + subtle pill so it shows
-               against our dark navy navbar in any color mode */
-            [data-testid="collapsedControl"] button {
-                background: rgba(255,255,255,0.18) !important;
-                border-radius: 6px !important;
-            }
-            [data-testid="collapsedControl"] svg,
-            [data-testid="collapsedControl"] button {
-                color: #ffffff !important;
-                fill: #ffffff !important;
-                stroke: #ffffff !important;
-            }
+        }
+
+        /* Sidebar drawer tab — visible navy pull handle on all screen sizes */
+        [data-testid="collapsedControl"] {
+            background-color: #1A2E5A !important;
+            border-radius: 0 8px 8px 0 !important;
+            width: 20px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 9998 !important;
+        }
+        [data-testid="collapsedControl"] button {
+            background: transparent !important;
+            border-radius: 0 8px 8px 0 !important;
+            width: 20px !important;
+            padding: 0 !important;
+        }
+        [data-testid="collapsedControl"] svg,
+        [data-testid="collapsedControl"] button {
+            color: #ffffff !important;
+            fill: #ffffff !important;
+            stroke: #ffffff !important;
         }
 
         #ms-chk { display: none; }

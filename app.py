@@ -1135,19 +1135,20 @@ else:
                                 st.session_state.messages.append(AIMessage(content=feedback))
                                 st.session_state.timeline.append("CRITICAL VIOLATION: Scene safety failure — provider incapacitated.")
                                 process_medsim_turn(feedback)
-                                if "[DEBRIEF]" in feedback:
-                                    st.session_state.sim_finished = True
-                                    _clear_live_session(st.session_state.get("session_id", ""))
-                                    log_call_metrics(
-                                        mode=st.session_state.mode,
-                                        acuity=st.session_state.get('current_acuity', 'Moderate'),
-                                        category=st.session_state.get('current_category', 'Medical'),
-                                        complaint=st.session_state.get('current_complaint', 'Random Pool Run'),
-                                        response_text=feedback,
-                                        had_hazard=True,
-                                        used_refusal=False,
-                                        student=st.session_state.get('student_name', 'Anonymous'),
-                                    )
+                                # Phase 2 is always a terminal FAIL — log unconditionally,
+                                # don't depend on the LLM remembering to include [DEBRIEF].
+                                st.session_state.sim_finished = True
+                                _clear_live_session(st.session_state.get("session_id", ""))
+                                log_call_metrics(
+                                    mode=st.session_state.mode,
+                                    acuity=st.session_state.get('current_acuity', 'Moderate'),
+                                    category=st.session_state.get('current_category', 'Medical'),
+                                    complaint=st.session_state.get('current_complaint', 'Random Pool Run'),
+                                    response_text=feedback,
+                                    had_hazard=True,
+                                    used_refusal=False,
+                                    student=st.session_state.get('student_name', 'Anonymous'),
+                                )
                                 st.rerun()
                 # --- END OF SCENE SAFETY FIREWALL ---
                 else:

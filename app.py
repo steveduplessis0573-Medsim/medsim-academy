@@ -890,7 +890,7 @@ if not st.session_state.started:
 
         st.session_state.current_acuity = acuity
 
-        if random.random() < 0.10:
+        if random.random() < 0.04:
             st.session_state.active_hazard = random.choice(HAZARD_POOL)
             st.session_state.scene_cleared = False
             st.session_state.hazard_warned = False

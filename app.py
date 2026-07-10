@@ -3,6 +3,7 @@ import os
 import re
 import random
 import hashlib
+import html
 import time
 import sqlite3
 import json
@@ -47,7 +48,7 @@ def load_resources():
     # Cache the 'Brain' so it stays in RAM and never reloads during the session
     embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     db = FAISS.load_local("protocol_db", embedder, allow_dangerous_deserialization=True)
-    # Using 2.0-Flash as the stable fallback to bypass the 404 errors on '3' and '1.5'
+    # Default model is gemini-2.5-flash; override via the GEMINI_MODEL secret/env var.
     llm = ChatGoogleGenerativeAI(model=_secret("GEMINI_MODEL", "gemini-2.5-flash"), temperature=0.7, timeout=60)
     return embedder, db, llm
 
@@ -84,6 +85,12 @@ def _auth_token():
     return hashlib.sha256(_secret("APP_PASSWORD", "").encode()).hexdigest()[:20]
 
 def check_password():
+    # Refuse to authenticate at all if no password is configured — otherwise the
+    # sha256("")[:20] token becomes a public, guessable master key.
+    if not _secret("APP_PASSWORD", ""):
+        st.error("⚠️ Configuration error: APP_PASSWORD is not set. Access is disabled until it is configured.")
+        st.stop()
+
     # Auto-pass if valid token is in URL (survives WebSocket reconnects)
     if st.query_params.get("auth") == _auth_token():
         st.session_state["password_correct"] = True
@@ -103,6 +110,12 @@ def check_password():
     return True
 
 if not check_password():
+    st.stop()
+
+# Fail loudly if the LLM system prompt is missing (e.g. Railway env var unset/renamed)
+# rather than silently running with only the 4-line header and producing garbage.
+if not _secret("SYSTEM_PROMPT_CONTENT", "").strip():
+    st.error("⚠️ Configuration error: SYSTEM_PROMPT_CONTENT is not set. The simulation engine is unavailable. Please contact the administrator.")
     st.stop()
 
 # --- CSS: THE "STAY PUT" MONITOR ---
@@ -184,25 +197,78 @@ st.markdown("""
 
 # --- 4. ENGINE FUNCTIONS ---
 def get_protocol_context(query):
-    # Retrieve top 2 chunks to minimize prompt size and maximize speed
+    # Retrieve top 4 chunks — balances protocol coverage against prompt size/latency
     docs = vector_db.similarity_search(query, k=4)
     return "\n---\n".join([d.page_content for d in docs])
 
+def _classify_hazard_intent(user_msg, hazard_type):
+    """
+    Classify a student's message during an ACTIVE, unresolved scene hazard.
+    Returns one of:
+      RESOLVED — student neutralizes the hazard, or stages/retreats and requests
+                 the correct resource, or performs a valid mitigation (e.g. safely
+                 secures an animal, moves the patient to fresh air away from a
+                 chemical/smoke source with appropriate precautions).
+      UNSAFE   — student tries to reach/assess/touch/treat the patient WITHOUT
+                 addressing the hazard, or explicitly ignores/bypasses it.
+      OTHER    — student asks a question or gathers scene information; neither
+                 reaching the patient nor resolving the hazard.
+    Uses the LLM to judge intent (keyword matching was both too loose and too
+    strict). Fails to OTHER so a classifier hiccup never punishes the student.
+    """
+    classifier_prompt = [
+        SystemMessage(content=(
+            "You are an intent classifier for an EMS simulation scene-safety system. "
+            f"An active {hazard_type} hazard is currently blocking safe access to the patient. "
+            "Read the student's message and output EXACTLY ONE of these three labels, "
+            "nothing else:\n\n"
+            "RESOLVED — the student makes the scene safe: neutralizes or removes the hazard, "
+            "OR stages/retreats and calls the appropriate resource (police, animal control, "
+            "hazmat, power/utility company, fire), OR performs a clinically valid mitigation "
+            "(e.g. safely secures/muzzles an animal, moves the patient to fresh air away from "
+            "a chemical or smoke source with proper precautions).\n"
+            "UNSAFE — the student attempts to reach, approach, assess, touch, or treat the "
+            "patient WITHOUT first addressing the hazard, or explicitly ignores/bypasses it.\n"
+            "OTHER — the student asks a question, requests more information about the scene, "
+            "or does something that is neither reaching the patient nor resolving the hazard.\n\n"
+            "Output only the single word: RESOLVED, UNSAFE, or OTHER."
+        )),
+        HumanMessage(content=user_msg),
+    ]
+    try:
+        resp = _invoke_with_retry(classifier_prompt, max_attempts=2)
+        verdict = (resp.content or "").strip().upper()
+        for label in ("RESOLVED", "UNSAFE", "OTHER"):
+            if label in verdict:
+                return label
+    except Exception:
+        pass
+    return "OTHER"   # fail safe — never advance to a FAIL on a classifier error
+
 def process_medsim_turn(text):
-    # 1. Update Vitals (Same as before)
+    # 1. Update Vitals — but NEVER overwrite a real measured value with a '--'
+    #    placeholder. The LLM's footer (and some prompt examples) emit '--' after
+    #    real values were taken; obeying those would wipe the monitor mid-call.
     v_pattern = r"\[VITAL\]\s*(HR|BP|SPO2|RR|BGL|TEMP)[:\-]\s*([^\[\n\r]+)"
     for label, val in re.findall(v_pattern, text, re.IGNORECASE):
-        st.session_state.vitals[label.upper()] = val.strip().split(' ')[0]
-    
+        clean_val = val.strip().split(' ')[0]
+        if not clean_val.strip("-").strip():   # skip '--' / '-' placeholders
+            continue
+        st.session_state.vitals[label.upper()] = clean_val
+
     # 2. Update Timeline with Deduplication
     l_matches = re.findall(r"\[LOG\]\s*([^\[\n\r]+)", text, re.IGNORECASE)
     for entry in l_matches:
         clean_entry = entry.strip()
-        
-        # Check if this exact action already exists in the timeline
-        # This prevents the 'Echo' effect if the AI repeats itself
-        is_duplicate = any(clean_entry in existing_log for existing_log in st.session_state.timeline)
-        
+
+        # Suppress only an EXACT repeat of an existing action (compare the text
+        # after the "T+MM:SS | " timestamp), so a shorter distinct log like
+        # "CPR" is not swallowed by an earlier "CPR initiated".
+        is_duplicate = any(
+            existing_log.split(" | ", 1)[-1] == clean_entry
+            for existing_log in st.session_state.timeline
+        )
+
         if not is_duplicate:
             ts = datetime.now() - st.session_state.get("start_time", datetime.now())
             timestamp = f"T+{ts.seconds//60:02d}:{ts.seconds%60:02d}"
@@ -244,8 +310,11 @@ def clean_for_display(text, show_vitals_inline: bool = True):
                 footer_real_vitals.append((key.upper(), clean_val))
         return ""
 
+    # Tolerate blank lines and extra whitespace between the [LOG] line and its
+    # trailing [VITAL] tags — Flash frequently inserts them, and a strict match
+    # would misclassify the footer vitals as narrative vitals.
     text = re.sub(
-        r"\[LOG\][^\n\r]*(\n[ \t]*\[VITAL\][^\n\r]*)*",
+        r"\[LOG\][^\n\r]*(\n+[ \t]*\[VITAL\][^\n\r]*)*",
         _strip_footer,
         text, flags=re.IGNORECASE,
     )
@@ -254,14 +323,15 @@ def clean_for_display(text, show_vitals_inline: bool = True):
     narrative_raw = re.findall(_vital_pat, text, re.IGNORECASE)
     has_narrative_vitals = any(v.strip().strip("-").strip() for _, v in narrative_raw)
 
-    if has_narrative_vitals:
+    if has_narrative_vitals and show_vitals_inline:
         # Format narrative [VITAL] tags inline as code spans; footer values
         # are discarded (narrative always wins to avoid duplicates).
         def _fmt(m):
             return f"`{m.group(1).upper()}: {m.group(2).strip()}` "
         text = re.sub(_vital_pat, _fmt, text, flags=re.IGNORECASE)
     else:
-        # No narrative vitals — strip any stray [VITAL] tags that slipped through
+        # Either no narrative vitals, or the student didn't ask for vitals this
+        # turn — strip all [VITAL] tags so unrequested values never leak inline.
         text = re.sub(r"\[VITAL\][^\n\r]*", "", text, flags=re.IGNORECASE)
 
         # Only surface footer vitals in the chat when the student asked for them.
@@ -318,8 +388,6 @@ CAPNO_SLUGS = {
     "esophageal":       "Esophageal Intubation",
     "apnea":            "Apnea",
     "cardiac_arrest":   "Cardiac Arrest — No Perfusion",
-    "rosc":             "ROSC — Spontaneous Circulation Restored",
-    "rebreathing":      "CO₂ Rebreathing",
     "rosc":             "ROSC — EtCO₂ Rising",
     "rebreathing":      "Rebreathing / Elevated Baseline",
     "cpr":              "CPR in Progress",
@@ -468,8 +536,13 @@ def _get_db_connection():
             messages TEXT, vitals TEXT, timeline TEXT,
             acuity TEXT, category TEXT, complaint TEXT,
             active_hazard TEXT, scene_cleared INTEGER, hazard_warned INTEGER,
-            updated_at TEXT)""")
+            hazard_phase INTEGER, updated_at TEXT)""")
         conn.commit()
+        try:
+            cur.execute("ALTER TABLE live_sessions ADD COLUMN hazard_phase INTEGER")
+            conn.commit()
+        except Exception:
+            conn.rollback()   # column already exists
         cur.close()
         return conn, True
     else:
@@ -493,7 +566,11 @@ def _get_db_connection():
             messages TEXT, vitals TEXT, timeline TEXT,
             acuity TEXT, category TEXT, complaint TEXT,
             active_hazard TEXT, scene_cleared INTEGER, hazard_warned INTEGER,
-            updated_at TEXT)""")
+            hazard_phase INTEGER, updated_at TEXT)""")
+        try:
+            conn.execute("ALTER TABLE live_sessions ADD COLUMN hazard_phase INTEGER")
+        except Exception:
+            pass
         conn.commit()
         return conn, False
 
@@ -584,23 +661,25 @@ def _save_live_session():
             hazard,
             int(st.session_state.get("scene_cleared", True)),
             int(st.session_state.get("hazard_warned", False)),
+            int(st.session_state.get("hazard_phase", 1)),
             datetime.now().isoformat(timespec="seconds"),
         )
         cur = conn.cursor()
         if is_pg:
             cur.execute(f"""INSERT INTO live_sessions
                 (session_id,student,mode,messages,vitals,timeline,acuity,category,complaint,
-                 active_hazard,scene_cleared,hazard_warned,updated_at)
-                VALUES ({",".join([ph]*13)})
+                 active_hazard,scene_cleared,hazard_warned,hazard_phase,updated_at)
+                VALUES ({",".join([ph]*14)})
                 ON CONFLICT (session_id) DO UPDATE SET
                 messages=EXCLUDED.messages, vitals=EXCLUDED.vitals, timeline=EXCLUDED.timeline,
                 active_hazard=EXCLUDED.active_hazard, scene_cleared=EXCLUDED.scene_cleared,
-                hazard_warned=EXCLUDED.hazard_warned, updated_at=EXCLUDED.updated_at""", vals)
+                hazard_warned=EXCLUDED.hazard_warned, hazard_phase=EXCLUDED.hazard_phase,
+                updated_at=EXCLUDED.updated_at""", vals)
         else:
             cur.execute(f"""INSERT OR REPLACE INTO live_sessions
                 (session_id,student,mode,messages,vitals,timeline,acuity,category,complaint,
-                 active_hazard,scene_cleared,hazard_warned,updated_at)
-                VALUES ({",".join([ph]*13)})""", vals)
+                 active_hazard,scene_cleared,hazard_warned,hazard_phase,updated_at)
+                VALUES ({",".join([ph]*14)})""", vals)
         conn.commit()
         cur.close()
         conn.close()
@@ -614,7 +693,7 @@ def _load_live_session(sid):
         ph = "%s" if is_pg else "?"
         cur = conn.cursor()
         cur.execute(f"""SELECT student,mode,messages,vitals,timeline,acuity,category,complaint,
-            active_hazard,scene_cleared,hazard_warned FROM live_sessions WHERE session_id={ph}""", (sid,))
+            active_hazard,scene_cleared,hazard_warned,hazard_phase FROM live_sessions WHERE session_id={ph}""", (sid,))
         row = cur.fetchone()
         cur.close()
         conn.close()
@@ -629,6 +708,7 @@ def _load_live_session(sid):
             "active_hazard": json.loads(row[8]) if row[8] else None,
             "scene_cleared": bool(row[9]),
             "hazard_warned": bool(row[10]),
+            "hazard_phase": row[11] if row[11] is not None else 1,
         }
     except Exception:
         return None
@@ -673,6 +753,7 @@ if not st.session_state.started:
             st.session_state.active_hazard  = _saved["active_hazard"]
             st.session_state.scene_cleared  = _saved["scene_cleared"]
             st.session_state.hazard_warned  = _saved["hazard_warned"]
+            st.session_state.hazard_phase   = _saved.get("hazard_phase", 1)
             st.session_state.start_time     = datetime.now()  # reconnect — real origin lost, reset clock
 
 # --- SIDEBAR UPDATES ---
@@ -720,6 +801,10 @@ with st.sidebar:
 
 # --- 7. MAIN UI ---
 if not st.session_state.started:
+
+    # Surface a dispatch/connection error carried over from a failed START CALL
+    if st.session_state.get("_dispatch_error"):
+        st.error(f"⚠️ {st.session_state.pop('_dispatch_error')}")
 
     st.info("⚠️ MedSim Academy uses AI to help you practice clinical decision‑making. The scenarios are fictional, and the system scores you using the protocols installed at the time—these might not match your agency's latest updates, and the AI isn't perfect. When treating real patients, always rely on your medical director and your local protocols.")
 
@@ -905,6 +990,10 @@ if not st.session_state.started:
         st.session_state.start_time = datetime.now()
         st.session_state.sim_finished = False
         st.session_state.timeline = ["Simulation started."]
+        # Reset the monitor so the previous patient's vitals don't bleed into this call
+        st.session_state.vitals = {"HR": "--", "BP": "--", "RR": "--", "SPO2": "--", "BGL": "--", "TEMP": "--"}
+        # Clear any stale analytics-error banner from a prior call
+        st.session_state.pop("_db_log_error", None)
         st.session_state.session_id = uuid.uuid4().hex[:10]
         st.query_params["sid"] = st.session_state.session_id
         
@@ -936,11 +1025,14 @@ if not st.session_state.started:
             try:
                 dispatch_resp = _invoke_with_retry(st.session_state.messages)
             except Exception:
-                st.error("Could not connect to simulation engine. Please try again.")
+                # Persist the error so it survives the rerun back to the start screen
+                # (an st.error here is wiped by the immediate st.rerun()).
+                st.session_state["_dispatch_error"] = "Could not connect to the simulation engine. Please try again."
                 for key in ["started", "mode", "start_time", "sim_finished", "timeline",
                             "active_hazard", "scene_cleared", "hazard_warned", "hazard_phase",
                             "current_complaint", "current_acuity", "current_category"]:
                     st.session_state.pop(key, None)
+                st.query_params.pop("sid", None)
                 st.rerun()
             if dispatch_resp:
                 process_medsim_turn(dispatch_resp.content)
@@ -970,12 +1062,17 @@ else:
             if isinstance(_m, AIMessage) and _extract_capno_data(_m.content if isinstance(_m.content, str) else "")[0]:
                 _last_capno_idx = _i
 
+        # messages[1] is always the internal "Dispatch a ..." instruction we inject;
+        # it must never render, and its complaint text (which can contain "heart
+        # rate 42" etc.) must not flip the vitals-requested gate.
         prev_vitals_requested = False
         for _msg_idx, msg in enumerate(st.session_state.messages):
             raw_content = msg.content if isinstance(msg.content, str) else ""
+            if _msg_idx == 1:
+                continue
             if isinstance(msg, HumanMessage):
                 prev_vitals_requested = bool(_VITALS_REQUEST_KW.search(raw_content))
-            if isinstance(msg, (AIMessage, HumanMessage)) and "Dispatch" not in raw_content:
+            if isinstance(msg, (AIMessage, HumanMessage)):
                 clean_text  = re.sub(r"--- LOCAL PROTOCOL REFERENCE ---.*--- STUDENT ACTION ---", "", raw_content, flags=re.DOTALL)
                 ecg_slug              = _extract_ecg_slug(clean_text)
                 capno_slug, capno_etco2 = _extract_capno_data(clean_text)
@@ -1028,22 +1125,7 @@ else:
                     and not st.session_state.scene_cleared
                 )
                 if hazard_active:
-                    u_input_lower = u_input.lower()
                     hazard = st.session_state.active_hazard
-
-                    staging_keywords = ["stage", "staging", "back up", "pull away", "retreat", "wait", "stand by", "distance"]
-                    resource_keywords = [
-                        hazard["fix"],
-                        "pd", "police", "cop", "law enforcement", "sheriff",
-                        "911", "dispatch", "resources", "assistance",
-                        "animal control", "animal",
-                        "power company", "utility company", "utilities", "electric company", "power", "electric", "lineman",
-                        "hazmat", "haz-mat", "decon", "chemical",
-                        "fire dept", "fire department", "fire", "rescue", "engine", "ladder",
-                    ]
-
-                    user_staged = any(word in u_input_lower for word in staging_keywords)
-                    user_called_help = any(word in u_input_lower for word in resource_keywords)
 
                     if not st.session_state.hazard_warned:
                         st.session_state.hazard_warned = True
@@ -1066,9 +1148,16 @@ else:
                         st.session_state.messages.append(HumanMessage(content=u_input))
                         st.session_state.messages.append(AIMessage(content=feedback))
                         st.session_state.timeline.append("Arrived on scene; hazard encountered.")
+                        _save_live_session()
                         st.rerun()
                     else:
-                        if user_staged or user_called_help:
+                        # Classify the student's intent with the LLM instead of brittle
+                        # keyword matching (which both failed valid mitigations and let
+                        # reckless students through on incidental words).
+                        with st.spinner("..."):
+                            verdict = _classify_hazard_intent(u_input, hazard["type"])
+
+                        if verdict == "RESOLVED":
                             st.session_state.scene_cleared = True
                             feedback = "[SCENE] Copy that. Initializing staging protocols and routing specialized resources. The threat has been mitigated and the area is declared safe. You may now approach the patient."
                             clear_directive = (
@@ -1081,9 +1170,36 @@ else:
                             st.session_state.messages.append(HumanMessage(content=u_input))
                             st.session_state.messages.append(AIMessage(content=feedback))
                             st.session_state.messages.append(SystemMessage(content=clear_directive))
-                            st.session_state.timeline.append(f"Scene safely mitigated via: '{u_input}'")
+                            st.session_state.timeline.append("Scene safely mitigated.")
+                            _save_live_session()
                             st.rerun()
-                        else:
+                        elif verdict == "OTHER":
+                            # Student is asking a question / gathering info — answer
+                            # in-world, keep the hazard active, do NOT advance the
+                            # phase and do NOT let them reach the patient.
+                            other_directive = (
+                                f"--- SCENE SAFETY — HAZARD STILL ACTIVE ---\n"
+                                f"An active {hazard['type']} hazard is still present and still blocking safe access to the patient. "
+                                f"The student's message is a question or an information-gathering action, NOT an attempt to resolve the hazard "
+                                f"and NOT an attempt to reach the patient. Answer it with vivid in-world narrative. "
+                                f"The hazard remains unresolved and the patient remains out of reach. "
+                                f"Do NOT allow patient contact, do NOT clear the scene, do NOT debrief. "
+                                f"End by asking how they wish to proceed."
+                            )
+                            temp_history = st.session_state.messages + [
+                                HumanMessage(content=u_input),
+                                SystemMessage(content=other_directive),
+                            ]
+                            try:
+                                resp = _invoke_with_retry(temp_history)
+                                feedback = resp.content
+                            except Exception:
+                                feedback = f"[SCENE] The {hazard['type']} hazard is still active between you and the patient. How do you wish to proceed?"
+                            st.session_state.messages.append(HumanMessage(content=u_input))
+                            st.session_state.messages.append(AIMessage(content=feedback))
+                            _save_live_session()
+                            st.rerun()
+                        else:  # verdict == "UNSAFE"
                             if st.session_state.get("hazard_phase", 1) == 1:
                                 # PHASE 1 — in-world block, one chance remaining
                                 phase1_directive = (
@@ -1107,6 +1223,7 @@ else:
                                 st.session_state.messages.append(HumanMessage(content=u_input))
                                 st.session_state.messages.append(AIMessage(content=feedback))
                                 st.session_state.timeline.append("Scene safety warning: patient contact attempted with active hazard.")
+                                _save_live_session()
                                 st.rerun()
                             else:
                                 # PHASE 2 — consequence + DEBRIEF
@@ -1155,6 +1272,10 @@ else:
                     with st.spinner("🔍 Consulting Protocols..."):
                         context = get_protocol_context(u_input)
 
+                    # Only phrases that signal a COMPLETED disposition should force a
+                    # debrief. "patient is refusing" is the START of the refusal/ECO
+                    # flow, not the end — forcing a debrief there kills capacity
+                    # assessment and the ECO path, so those are deliberately excluded.
                     _HANDOFF_PHRASES = [
                         "transferring care", "transfer care", "transfer of care",
                         "handing off", "hand off", "handoff",
@@ -1162,9 +1283,8 @@ else:
                         "turning patient over", "turning over care", "turning over the patient",
                         "i'm handing", "i am handing",
                         "als is on scene", "als on scene", "als has arrived",
-                        "patient refused", "patient is refusing", "obtain a refusal",
                         "signing the refusal", "sign the refusal", "signed the refusal",
-                        "patient signing", "refusal form",
+                        "refusal is signed", "refusal form signed",
                     ]
                     _u_lower = u_input.lower()
                     _is_handoff = any(p in _u_lower for p in _HANDOFF_PHRASES)
@@ -1187,11 +1307,20 @@ else:
                     st.session_state.messages.append(AIMessage(content=resp.content))
                     process_medsim_turn(resp.content)
 
-                    if "[DEBRIEF]" in resp.content:
+                    # End the call if the LLM produced a debrief. Detect it robustly:
+                    # an explicit [DEBRIEF] tag, OR (on a handoff turn we forced) any
+                    # scored/résult output even if Flash dropped the literal tag.
+                    _content = resp.content or ""
+                    _has_debrief = bool(re.search(r"\[?\bDEBRIEF\b\]?", _content, re.IGNORECASE))
+                    _has_score_result = bool(re.search(r"\[?\bSCORE\b\]?\s*[:\-]?\s*\d", _content, re.IGNORECASE)) \
+                        or bool(re.search(r"\[?\bRESULT\b\]?\s*[:\-]?\s*(PASS|FAIL)", _content, re.IGNORECASE))
+                    if _has_debrief or (_is_handoff and _has_score_result):
                         st.session_state.sim_finished = True
                         _clear_live_session(st.session_state.get("session_id", ""))
                         had_hz = hasattr(st.session_state, 'active_hazard') and st.session_state.active_hazard is not None
-                        used_ref = "[REFUSAL]" in resp.content or "signed refusal" in u_input.lower()
+                        # No [REFUSAL] tag exists in the prompt; infer from the debrief/action text.
+                        used_ref = bool(re.search(r"refus|against medical advice|\bAMA\b", _content, re.IGNORECASE)) \
+                            or bool(re.search(r"refus", u_input, re.IGNORECASE))
                         log_call_metrics(
                             mode=st.session_state.mode,
                             acuity=st.session_state.get('current_acuity', 'Moderate'),
@@ -1213,13 +1342,15 @@ else:
         v_items = list(st.session_state.vitals.items())
         for i, (k, v) in enumerate(v_items):
             target_col = c1 if i % 2 == 0 else c2
+            # Escape — these values originate from LLM output and must not inject HTML
             target_col.markdown(
-                f'<div class="vital-card"><span class="vital-label">{k}</span><br>'
-                f'<span class="vital-value">{v}</span></div>',
+                f'<div class="vital-card"><span class="vital-label">{html.escape(str(k))}</span><br>'
+                f'<span class="vital-value">{html.escape(str(v))}</span></div>',
                 unsafe_allow_html=True,
             )
 
         st.divider()
         with st.expander("🕒 Timeline", expanded=True):
             for entry in reversed(st.session_state.timeline):
-                st.markdown(f'<div class="log-entry">{entry}</div>', unsafe_allow_html=True)
+                # Escape — timeline entries include LLM [LOG] text and student input
+                st.markdown(f'<div class="log-entry">{html.escape(str(entry))}</div>', unsafe_allow_html=True)

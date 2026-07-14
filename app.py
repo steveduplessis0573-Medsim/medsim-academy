@@ -1364,9 +1364,18 @@ else:
                         # the debrief restores this view, not the start screen.
                         _save_live_session(mark_finished=True)
                         had_hz = hasattr(st.session_state, 'active_hazard') and st.session_state.active_hazard is not None
-                        # No [REFUSAL] tag exists in the prompt; infer from the debrief/action text.
-                        used_ref = bool(re.search(r"refus|against medical advice|\bAMA\b", _content, re.IGNORECASE)) \
-                            or bool(re.search(r"refus", u_input, re.IGNORECASE))
+                        # Infer a refusal WITHOUT matching the debrief's standing
+                        # "REFUSAL ASSESSMENT:" header (present on every debrief).
+                        # A real refusal = that section populated with something other
+                        # than "not applicable", OR AMA / signed-refusal language, OR
+                        # the student's own action mentions refusing/signing a refusal.
+                        _refusal_sec = re.search(r"REFUSAL ASSESSMENT[:\s]*(.+?)(?:\n\s*\d|\n\s*\[|$)",
+                                                 _content, re.IGNORECASE | re.DOTALL)
+                        used_ref = (
+                            (_refusal_sec is not None and "not applicable" not in _refusal_sec.group(1).lower())
+                            or bool(re.search(r"against medical advice|\bAMA\b|signed (?:the |a )?refusal|refusal form", _content, re.IGNORECASE))
+                            or bool(re.search(r"\brefus(?:e|es|ed|ing|al)\b", u_input, re.IGNORECASE))
+                        )
                         log_call_metrics(
                             mode=st.session_state.mode,
                             acuity=st.session_state.get('current_acuity', 'Moderate'),

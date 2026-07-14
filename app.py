@@ -536,10 +536,15 @@ def _get_db_connection():
             messages TEXT, vitals TEXT, timeline TEXT,
             acuity TEXT, category TEXT, complaint TEXT,
             active_hazard TEXT, scene_cleared INTEGER, hazard_warned INTEGER,
-            hazard_phase INTEGER, updated_at TEXT)""")
+            hazard_phase INTEGER, finished INTEGER, updated_at TEXT)""")
         conn.commit()
         try:
             cur.execute("ALTER TABLE live_sessions ADD COLUMN hazard_phase INTEGER")
+            conn.commit()
+        except Exception:
+            conn.rollback()   # column already exists
+        try:
+            cur.execute("ALTER TABLE live_sessions ADD COLUMN finished INTEGER")
             conn.commit()
         except Exception:
             conn.rollback()   # column already exists
@@ -566,9 +571,13 @@ def _get_db_connection():
             messages TEXT, vitals TEXT, timeline TEXT,
             acuity TEXT, category TEXT, complaint TEXT,
             active_hazard TEXT, scene_cleared INTEGER, hazard_warned INTEGER,
-            hazard_phase INTEGER, updated_at TEXT)""")
+            hazard_phase INTEGER, finished INTEGER, updated_at TEXT)""")
         try:
             conn.execute("ALTER TABLE live_sessions ADD COLUMN hazard_phase INTEGER")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE live_sessions ADD COLUMN finished INTEGER")
         except Exception:
             pass
         conn.commit()
@@ -639,10 +648,16 @@ def _deserialize_messages(s):
         elif item["t"] == "s": msgs.append(SystemMessage(content=item["c"]))
     return msgs
 
-def _save_live_session():
-    """Checkpoint active call state to DB after every LLM response."""
+def _save_live_session(mark_finished=False):
+    """Checkpoint active call state to DB after every LLM response.
+
+    mark_finished=True persists a COMPLETED call (finished=1) so the debrief
+    survives a page refresh; without it, finished calls are never checkpointed.
+    """
     sid = st.session_state.get("session_id")
-    if not sid or not st.session_state.get("started") or st.session_state.get("sim_finished"):
+    if not sid or not st.session_state.get("started"):
+        return
+    if st.session_state.get("sim_finished") and not mark_finished:
         return
     try:
         conn, is_pg = _get_db_connection()
@@ -662,24 +677,25 @@ def _save_live_session():
             int(st.session_state.get("scene_cleared", True)),
             int(st.session_state.get("hazard_warned", False)),
             int(st.session_state.get("hazard_phase", 1)),
+            int(mark_finished),
             datetime.now().isoformat(timespec="seconds"),
         )
         cur = conn.cursor()
         if is_pg:
             cur.execute(f"""INSERT INTO live_sessions
                 (session_id,student,mode,messages,vitals,timeline,acuity,category,complaint,
-                 active_hazard,scene_cleared,hazard_warned,hazard_phase,updated_at)
-                VALUES ({",".join([ph]*14)})
+                 active_hazard,scene_cleared,hazard_warned,hazard_phase,finished,updated_at)
+                VALUES ({",".join([ph]*15)})
                 ON CONFLICT (session_id) DO UPDATE SET
                 messages=EXCLUDED.messages, vitals=EXCLUDED.vitals, timeline=EXCLUDED.timeline,
                 active_hazard=EXCLUDED.active_hazard, scene_cleared=EXCLUDED.scene_cleared,
                 hazard_warned=EXCLUDED.hazard_warned, hazard_phase=EXCLUDED.hazard_phase,
-                updated_at=EXCLUDED.updated_at""", vals)
+                finished=EXCLUDED.finished, updated_at=EXCLUDED.updated_at""", vals)
         else:
             cur.execute(f"""INSERT OR REPLACE INTO live_sessions
                 (session_id,student,mode,messages,vitals,timeline,acuity,category,complaint,
-                 active_hazard,scene_cleared,hazard_warned,hazard_phase,updated_at)
-                VALUES ({",".join([ph]*14)})""", vals)
+                 active_hazard,scene_cleared,hazard_warned,hazard_phase,finished,updated_at)
+                VALUES ({",".join([ph]*15)})""", vals)
         conn.commit()
         cur.close()
         conn.close()
@@ -693,7 +709,7 @@ def _load_live_session(sid):
         ph = "%s" if is_pg else "?"
         cur = conn.cursor()
         cur.execute(f"""SELECT student,mode,messages,vitals,timeline,acuity,category,complaint,
-            active_hazard,scene_cleared,hazard_warned,hazard_phase FROM live_sessions WHERE session_id={ph}""", (sid,))
+            active_hazard,scene_cleared,hazard_warned,hazard_phase,finished FROM live_sessions WHERE session_id={ph}""", (sid,))
         row = cur.fetchone()
         cur.close()
         conn.close()
@@ -709,6 +725,7 @@ def _load_live_session(sid):
             "scene_cleared": bool(row[9]),
             "hazard_warned": bool(row[10]),
             "hazard_phase": row[11] if row[11] is not None else 1,
+            "finished": bool(row[12]),
         }
     except Exception:
         return None
@@ -741,7 +758,9 @@ if not st.session_state.started:
         if _saved:
             st.session_state.session_id     = _sid
             st.session_state.started        = True
-            st.session_state.sim_finished   = False
+            # A finished row restores as a read-only VIEW of the completed call
+            # (debrief re-rendered, chat input suppressed) — never as an active call.
+            st.session_state.sim_finished   = bool(_saved.get("finished"))
             st.session_state.mode           = _saved["mode"]
             st.session_state.student_name   = _saved["student"]
             st.session_state.messages       = _saved["messages"]
@@ -994,6 +1013,11 @@ if not st.session_state.started:
         st.session_state.vitals = {"HR": "--", "BP": "--", "RR": "--", "SPO2": "--", "BGL": "--", "TEMP": "--"}
         # Clear any stale analytics-error banner from a prior call
         st.session_state.pop("_db_log_error", None)
+        # Drop the previous call's checkpoint row (e.g. a finished debrief kept
+        # for refresh-survival) so completed sessions don't accumulate in the DB.
+        _prev_sid = st.query_params.get("sid") or st.session_state.get("session_id")
+        if _prev_sid:
+            _clear_live_session(_prev_sid)
         st.session_state.session_id = uuid.uuid4().hex[:10]
         st.query_params["sid"] = st.session_state.session_id
         
@@ -1105,6 +1129,21 @@ else:
         # Show any database logging error that survived the rerun
         if st.session_state.get("_db_log_error"):
             st.error(f"⚠️ Analytics logging error: {st.session_state['_db_log_error']}")
+
+        # Completed call — offer an explicit path back to the start screen.
+        # (A refresh now restores this debrief view instead of resetting, so
+        # this button is the reset mechanism.)
+        if st.session_state.sim_finished:
+            if st.button("🚀 Start New Call", type="primary", use_container_width=True):
+                _clear_live_session(st.session_state.get("session_id") or st.query_params.get("sid", ""))
+                st.query_params.pop("sid", None)
+                for _k in ["started", "sim_finished", "messages", "vitals", "timeline",
+                           "mode", "start_time", "active_hazard", "scene_cleared",
+                           "hazard_warned", "hazard_phase", "current_complaint",
+                           "current_acuity", "current_category", "session_id",
+                           "student_name", "_db_log_error"]:
+                    st.session_state.pop(_k, None)
+                st.rerun()
 
         # Student Input
         u_input = None
@@ -1255,7 +1294,9 @@ else:
                                 # Phase 2 is always a terminal FAIL — log unconditionally,
                                 # don't depend on the LLM remembering to include [DEBRIEF].
                                 st.session_state.sim_finished = True
-                                _clear_live_session(st.session_state.get("session_id", ""))
+                                # Keep the checkpoint (marked finished) so a refresh
+                                # during the debrief restores this view, not the start screen.
+                                _save_live_session(mark_finished=True)
                                 log_call_metrics(
                                     mode=st.session_state.mode,
                                     acuity=st.session_state.get('current_acuity', 'Moderate'),
@@ -1316,7 +1357,9 @@ else:
                         or bool(re.search(r"\[?\bRESULT\b\]?\s*[:\-]?\s*(PASS|FAIL)", _content, re.IGNORECASE))
                     if _has_debrief or (_is_handoff and _has_score_result):
                         st.session_state.sim_finished = True
-                        _clear_live_session(st.session_state.get("session_id", ""))
+                        # Keep the checkpoint (marked finished) so a refresh during
+                        # the debrief restores this view, not the start screen.
+                        _save_live_session(mark_finished=True)
                         had_hz = hasattr(st.session_state, 'active_hazard') and st.session_state.active_hazard is not None
                         # No [REFUSAL] tag exists in the prompt; infer from the debrief/action text.
                         used_ref = bool(re.search(r"refus|against medical advice|\bAMA\b", _content, re.IGNORECASE)) \

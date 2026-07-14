@@ -45,8 +45,11 @@ def load_scope_reference(standard: str = "PWC") -> str:
 
 @st.cache_resource
 def load_resources():
-    # Cache the 'Brain' so it stays in RAM and never reloads during the session
-    embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"local_files_only": True})
+    # Cache the 'Brain' so it stays in RAM and never reloads during the session.
+    # NOTE: do NOT set local_files_only=True here — Railway containers don't ship
+    # the model cache and must download it from HuggingFace at startup. That flag
+    # is only valid for the local ingestion script, where the model is cached.
+    embedder = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     db = FAISS.load_local("protocol_db", embedder, allow_dangerous_deserialization=True)
     # Default model is gemini-2.5-flash; override via the GEMINI_MODEL secret/env var.
     llm = ChatGoogleGenerativeAI(model=_secret("GEMINI_MODEL", "gemini-2.5-flash"), temperature=0.7, timeout=60)

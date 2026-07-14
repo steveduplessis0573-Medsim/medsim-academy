@@ -17,7 +17,13 @@ _SIDEBAR_X_MAX = 55.0   # sidebar strip ends here; content begins to the right
 _HEADER_Y_MAX  = 55.0   # green header bar occupies top ~55 pts
 _FOOTER_Y_MIN  = 740.0  # green footer bar occupies bottom ~52 pts
 
-_BARE_NUMBER_RE = re.compile(r'^[IVXLCDM\d]+$', re.IGNORECASE)
+# Reject only true page labels: pure integers ("42") or syntactically valid
+# UPPERCASE Roman numerals ("IX", "XIV", "M"). The old loose [IVXLCDM]+ class
+# (case-insensitive) wrongly discarded real title words spelled entirely with
+# Roman-numeral letters, e.g. "MILD", "DIM", "CIVIC".
+_BARE_NUMBER_RE = re.compile(
+    r'^(?:\d+|M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3}))$'
+)
 
 
 def _color_close(c1, c2):
@@ -57,12 +63,34 @@ def _extract_page_text(page):
     if not zones:
         return page.get_text("text", clip=fallback_clip).strip()
 
-    parts = []
+    # Universal (unmarked) content shares the page with the colored zones:
+    # shared assessment/indications text above the first strip, plus any gaps
+    # between or below strips. Walk the content column top-to-bottom, emitting
+    # universal gap segments and scoped zone segments in reading order so the
+    # protocol text stays coherent.
+    _MIN_GAP_PTS = 6.0   # ignore hairline gaps between adjacent strips
+
+    segments = []   # (y0, y1, scope_or_None) in top-to-bottom order
+    cursor = _HEADER_Y_MAX
     for y0, y1, scope in zones:
+        z0 = max(y0, _HEADER_Y_MAX)
+        z1 = min(y1, _FOOTER_Y_MIN)
+        if z0 - cursor > _MIN_GAP_PTS:
+            segments.append((cursor, z0, None))
+        if z1 > z0:
+            segments.append((z0, z1, scope))
+        cursor = max(cursor, z1)
+    if _FOOTER_Y_MIN - cursor > _MIN_GAP_PTS:
+        segments.append((cursor, _FOOTER_Y_MIN, None))
+
+    parts = []
+    for y0, y1, scope in segments:
         clip = fitz.Rect(_SIDEBAR_X_MAX, y0, pr.width, y1)
         text = page.get_text("text", clip=clip).strip()
-        if text:
-            parts.append(f"[{scope} SECTION:]\n{text}")
+        if not text:
+            continue
+        label = f"[{scope} SECTION:]" if scope else "[BLS + ALS PROVIDERS:]"
+        parts.append(f"{label}\n{text}")
 
     if not parts:
         return page.get_text("text", clip=fallback_clip).strip()

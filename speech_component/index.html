@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: transparent; padding: 4px 0; }
+  #wrap { display: flex; align-items: center; gap: 10px; }
+  #micBtn {
+    background: #1a472a;
+    color: #a3d9a5;
+    border: none;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  #micBtn.active { background: #7f1d1d; color: #fca5a5; animation: pulse 1.2s ease-in-out infinite; }
+  #micBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+  #preview { font-size: 0.78rem; color: #9ca3af; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <button id="micBtn">🎤 Voice Input</button>
+  <span id="preview"></span>
+</div>
+<script>
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = document.getElementById('micBtn');
+  const preview = document.getElementById('preview');
+
+  function post(type, payload) {
+    window.parent.postMessage({ isStreamlitMessage: true, type, ...payload }, '*');
+  }
+
+  post('streamlit:componentReady', { apiVersion: 1 });
+  post('streamlit:setFrameHeight', { height: 36 });
+
+  if (!SR) {
+    btn.textContent = '⚠️ Chrome/Edge required for voice';
+    btn.disabled = true;
+  } else {
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    let active = false;
+
+    btn.onclick = () => {
+      if (!active) {
+        try { rec.start(); } catch(e) {}
+        active = true;
+        btn.textContent = '🔴 Listening... (click to stop)';
+        btn.classList.add('active');
+        preview.textContent = '';
+      } else {
+        rec.stop();
+      }
+    };
+
+    rec.onresult = (e) => {
+      let interim = '', final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      preview.textContent = final || interim;
+      if (final) {
+        post('streamlit:setComponentValue', { value: final.trim(), dataType: 'json' });
+      }
+    };
+
+    rec.onend = () => {
+      active = false;
+      btn.textContent = '🎤 Voice Input';
+      btn.classList.remove('active');
+      if (!preview.textContent) {
+        preview.textContent = 'No speech detected.';
+        setTimeout(() => { preview.textContent = ''; }, 2000);
+      }
+    };
+
+    rec.onerror = (e) => {
+      active = false;
+      btn.textContent = '🎤 Voice Input';
+      btn.classList.remove('active');
+      if (e.error !== 'aborted') {
+        preview.textContent = 'Error: ' + e.error;
+        setTimeout(() => { preview.textContent = ''; }, 3000);
+      }
+    };
+  }
+</script>
+</body>
+</html>

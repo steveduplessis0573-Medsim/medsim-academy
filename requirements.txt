@@ -1,8 +1,12 @@
 streamlit
+matplotlib
+numpy
 langchain-google-genai
 langchain-huggingface
 langchain-community
 faiss-cpu
 pypdf
+pymupdf
+psycopg2-binary
 sentence-transformers
 torchvision

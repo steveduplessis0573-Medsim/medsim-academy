@@ -5,6 +5,16 @@
 # THIS IS THE AUTHORITATIVE SCOPE REFERENCE FOR MEDSIM DEBRIEF EVALUATION.
 # Consult this file FIRST for all scope determinations. It overrides RAG retrieval.
 # Do NOT flag any authorized item as a scope violation unless specific contraindications listed are present.
+#
+# BLS DEBRIEF SCOPE RULE (ABSOLUTE): When evaluating a BLS provider, you MUST NOT
+# recommend, suggest, praise, or imply that the provider "could have" or "should have"
+# given any medication or performed any procedure that is not in the BLS AUTHORIZATIONS
+# list below — not even for comfort or "symptomatic relief." A positive suggestion of an
+# out-of-scope action is itself an error. Do NOT invent a protocol (e.g. a "Fever
+# Protocol") to justify an out-of-scope action. Any drug NOT explicitly in BLS
+# AUTHORIZATIONS is ALS-only for scoring purposes — this includes common OVER-THE-COUNTER
+# drugs. ACETAMINOPHEN / Tylenol is ALS-ONLY in PWC and a BLS provider must NEVER be told
+# to give it, in any form or route.
 # ─────────────────────────────────────────────────────────────────────────────
 
 ## BLS AUTHORIZATIONS — DO NOT FLAG THESE AS ALS VIOLATIONS
@@ -32,7 +42,7 @@ SUPRAGLOTTIC AIRWAY (SGA/I-gel): BLS and ALS authorized.
 
 ## ALS-AUTHORIZED MEDICATIONS — COMPLETE LIST
 
-ACETAMINOPHEN (IV/IO): ALS only. Pain/fever. BLS does NOT administer acetaminophen in any form.
+ACETAMINOPHEN: ALS ONLY (IV/IO). Pain/fever. BLS does NOT administer acetaminophen in ANY form or route — INCLUDING oral/PO. NEVER tell a BLS provider they could have or should have given acetaminophen; it is a common trap because it is OTC, but it is OUT OF BLS SCOPE in PWC. There is no BLS "Fever Protocol" antipyretic — do not invent one.
 
 ADENOSINE: ALS only. SVT (regular narrow complex, mild symptoms); stable wide complex tach if SVT strongly suspected. 6 mg rapid IVP + 20 ml NS flush; repeat 12 mg if no response. Contraindicated: 2nd/3rd degree AV block, sick sinus syndrome.
 
